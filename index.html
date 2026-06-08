@@ -1,498 +1,399 @@
- <!DOCTYPE html>
-import { useState, useEffect, useCallback } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Wellness Journal</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;min-height:100vh}
+input,select{outline:none;font-family:inherit}
+input:focus,select:focus{border-color:#f97316!important}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback}=React;
 
-const DEFAULT_ACTIVITIES = [
-  { id: "wake_up", label: "Wake Up Time", type: "time", icon: "🌅", category: "Morning" },
-  { id: "exercise", label: "Exercise Done", type: "checkbox", icon: "💪", category: "Morning" },
-  { id: "green_tea", label: "Green Tea", type: "checkbox", icon: "🍵", category: "Morning" },
-  { id: "dry_fruits", label: "Dry Fruits", type: "checkbox", icon: "🥜", category: "Morning" },
-  { id: "breakfast", label: "Breakfast", type: "text", icon: "🍳", category: "Meals" },
-  { id: "lunch", label: "Lunch", type: "text", icon: "🍱", category: "Meals" },
-  { id: "milk_makhana", label: "Milk & Makhana", type: "checkbox", icon: "🥛", category: "Meals" },
-  { id: "dinner", label: "Dinner", type: "text", icon: "🍽️", category: "Meals" },
-  { id: "walk", label: "Walk", type: "text", icon: "🚶", category: "Fitness" },
-  { id: "play_time", label: "Play Time", type: "text", icon: "🏃", category: "Fitness" },
-  { id: "khura_fix_1", label: "Khura Fix No.1", type: "checkbox", icon: "💊", category: "Supplements" },
-  { id: "khura_fix_2", label: "Khura Fix No.2", type: "checkbox", icon: "💊", category: "Supplements" },
-  { id: "khura_fix_3", label: "Khura Fix No.3", type: "checkbox", icon: "💊", category: "Supplements" },
-  { id: "multivitamin", label: "Multivitamin", type: "checkbox", icon: "🧪", category: "Supplements" },
-  { id: "neurobion", label: "Neurobion Forte", type: "checkbox", icon: "🧬", category: "Supplements" },
-  { id: "liver_tonic", label: "Liver Tonic", type: "checkbox", icon: "🫀", category: "Supplements" },
-  { id: "folic_acid", label: "Folic Acid", type: "checkbox", icon: "🔬", category: "Supplements" },
-  { id: "office", label: "Office", type: "checkbox", icon: "🏢", category: "Work & Study" },
-  { id: "study", label: "Study", type: "checkbox", icon: "📚", category: "Work & Study" },
-  { id: "extra_1", label: "Extra-1", type: "checkbox", icon: "⭐", category: "Work & Study" },
-  { id: "extra_2", label: "Extra-2", type: "checkbox", icon: "⭐", category: "Work & Study" },
-  { id: "future_prep", label: "Future Prep (Teaching Kids)", type: "checkbox", icon: "👨‍🏫", category: "Work & Study" },
+const EXCLUDED_DASHBOARD=["breakfast","lunch","dinner"];
+
+const DEFAULT_ACTS=[
+  {id:"wake_up",   label:"Wake Up Time",                type:"time",    icon:"🌅",category:"Morning"},
+  {id:"exercise",  label:"Exercise Done",               type:"checkbox",icon:"💪",category:"Morning"},
+  {id:"green_tea", label:"Green Tea",                   type:"checkbox",icon:"🍵",category:"Morning"},
+  {id:"dry_fruits",label:"Dry Fruits",                  type:"checkbox",icon:"🥜",category:"Morning"},
+  {id:"breakfast", label:"Breakfast",                   type:"text",    icon:"🍳",category:"Meals"},
+  {id:"lunch",     label:"Lunch",                       type:"text",    icon:"🍱",category:"Meals"},
+  {id:"milk_makhana",label:"Milk & Makhana",            type:"checkbox",icon:"🥛",category:"Meals"},
+  {id:"dinner",    label:"Dinner",                      type:"text",    icon:"🍽️",category:"Meals"},
+  {id:"walk",      label:"Walk",                        type:"text",    icon:"🚶",category:"Fitness"},
+  {id:"play_time", label:"Play Time",                   type:"text",    icon:"🏃",category:"Fitness"},
+  {id:"khura_fix_1",label:"Khura Fix No.1",             type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"khura_fix_2",label:"Khura Fix No.2",             type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"khura_fix_3",label:"Khura Fix No.3",             type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"multivitamin",label:"Multivitamin",              type:"checkbox",icon:"🧪",category:"Supplements"},
+  {id:"neurobion", label:"Neurobion Forte",             type:"checkbox",icon:"🧬",category:"Supplements"},
+  {id:"liver_tonic",label:"Liver Tonic",                type:"checkbox",icon:"🫀",category:"Supplements"},
+  {id:"folic_acid",label:"Folic Acid",                  type:"checkbox",icon:"🔬",category:"Supplements"},
+  {id:"office",    label:"Office",                      type:"checkbox",icon:"🏢",category:"Work & Study"},
+  {id:"study",     label:"Study",                       type:"checkbox",icon:"📚",category:"Work & Study"},
+  {id:"extra_1",   label:"Extra-1",                     type:"checkbox",icon:"⭐",category:"Work & Study"},
+  {id:"extra_2",   label:"Extra-2",                     type:"checkbox",icon:"⭐",category:"Work & Study"},
+  {id:"future_prep",label:"Future Prep (Teaching Kids)",type:"checkbox",icon:"👨‍🏫",category:"Work & Study"},
 ];
 
-const EXCLUDED_FROM_COMPLETION = [
-  "breakfast",
-  "lunch",
-  "dinner"
-];
-
-const CATEGORY_COLORS = {
-  Morning: { bg: "#FFF7ED", border: "#FB923C", text: "#9A3412", icon: "🌄" },
-  Meals: { bg: "#F0FDF4", border: "#4ADE80", text: "#166534", icon: "🍴" },
-  Fitness: { bg: "#EFF6FF", border: "#60A5FA", text: "#1E3A8A", icon: "🏅" },
-  Supplements: { bg: "#FDF4FF", border: "#C084FC", text: "#6B21A8", icon: "💉" },
-  "Work & Study": { bg: "#FFF1F2", border: "#FB7185", text: "#9F1239", icon: "🎯" },
-  Custom: { bg: "#F8FAFC", border: "#94A3B8", text: "#334155", icon: "✨" },
+const CAT_STYLE={
+  "Morning":     {bg:"#FFF7ED",border:"#FB923C",text:"#9A3412",icon:"🌄"},
+  "Meals":       {bg:"#F0FDF4",border:"#4ADE80",text:"#166534",icon:"🍴"},
+  "Fitness":     {bg:"#EFF6FF",border:"#60A5FA",text:"#1E3A8A",icon:"🏅"},
+  "Supplements": {bg:"#FDF4FF",border:"#C084FC",text:"#6B21A8",icon:"💊"},
+  "Work & Study":{bg:"#FFF1F2",border:"#FB7185",text:"#9F1239",icon:"🎯"},
+  "Custom":      {bg:"#F8FAFC",border:"#94A3B8",text:"#334155",icon:"✨"},
 };
 
-function toDateKey(date) {
-  return date.toISOString().split("T")[0];
+const toKey=d=>d.toISOString().split("T")[0];
+const todayKey=()=>toKey(new Date());
+const fmtDate=s=>{
+  const d=new Date(s+"T00:00:00");
+  return d.toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+};
+
+function stGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}}
+function stSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
+
+function ActRow({act,value,onChange}){
+  return(
+    <div style={{display:"flex",alignItems:"center",padding:"9px 6px",borderBottom:"1px solid rgba(0,0,0,0.05)",gap:10}}>
+      <span style={{fontSize:18,minWidth:28,textAlign:"center"}}>{act.icon}</span>
+      <span style={{flex:1,fontSize:14,fontWeight:600,color:"#1e293b"}}>{act.label}</span>
+      {act.type==="checkbox"&&(
+        <div onClick={()=>onChange(!value)} style={{width:28,height:28,borderRadius:8,border:`2.5px solid ${value?"#22c55e":"#cbd5e1"}`,background:value?"#22c55e":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",flexShrink:0}}>
+          {value&&<span style={{color:"#fff",fontSize:15,fontWeight:900,lineHeight:1}}>✓</span>}
+        </div>
+      )}
+      {act.type==="text"&&<input value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Add note..." style={{width:130,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
+      {act.type==="number"&&<input type="number" value={value||""} onChange={e=>onChange(e.target.value)} placeholder="0" style={{width:80,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
+      {act.type==="time"&&<input type="time" value={value||""} onChange={e=>onChange(e.target.value)} style={{width:105,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
+    </div>
+  );
 }
 
-function getTodayKey() {
-  return toDateKey(new Date());
+function DateBar({dateKey,onChange}){
+  const isToday=dateKey===todayKey();
+  const go=n=>{const d=new Date(dateKey+"T00:00:00");d.setDate(d.getDate()+n);if(toKey(d)<=todayKey())onChange(toKey(d));};
+  return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,background:"#fff",borderRadius:14,padding:"10px 16px",border:"1.5px solid #e2e8f0"}}>
+      <button onClick={()=>go(-1)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>‹</button>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontWeight:800,fontSize:14,color:"#1e293b"}}>{fmtDate(dateKey)}</div>
+        {isToday&&<span style={{fontSize:11,color:"#f97316",fontWeight:800,letterSpacing:1}}>TODAY</span>}
+      </div>
+      <button onClick={()=>go(1)} style={{background:"#f1f5f9",border:"none",cursor:isToday?"default":"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:isToday?"#e2e8f0":"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>›</button>
+    </div>
+  );
 }
 
-function formatDate(dateStr) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+function WeightChart({data}){
+  const valid=data.filter(d=>d.w!==null);
+  if(valid.length<2)return <div style={{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}}>Track weight on at least 2 days to see the trend</div>;
+  const vals=valid.map(d=>d.w);
+  const mn=Math.min(...vals)-0.5,mx=Math.max(...vals)+0.5;
+  const H=110,W=600;
+  const pts=data.map((d,i)=>({...d,x:30+(i/(data.length-1))*(W-60),y:d.w?H-((d.w-mn)/(mx-mn))*(H-20):null}));
+  const lp=pts.filter(p=>p.y!==null);
+  const path=lp.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ");
+  const area=path+` L ${lp[lp.length-1].x} ${H} L ${lp[0].x} ${H} Z`;
+  return(
+    <svg viewBox={`0 0 ${W} ${H+24}`} style={{width:"100%",height:"auto",overflow:"visible"}}>
+      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient></defs>
+      <path d={area} fill="url(#wg)"/>
+      <path d={path} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {pts.map((p,i)=>p.y?(
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="4.5" fill="#3b82f6"/>
+          <text x={p.x} y={H+18} textAnchor="middle" fontSize="10" fill="#94a3b8">{p.date}</text>
+          <text x={p.x} y={p.y-9} textAnchor="middle" fontSize="10" fill="#1e3a8a" fontWeight="700">{p.w}kg</text>
+        </g>
+      ):null)}
+    </svg>
+  );
 }
 
-async function loadFromStorage(key) {
-  try {
-    const r = await window.storage.get(key);
-    return r ? JSON.parse(r.value) : null;
-  } catch { return null; }
-}
+function App(){
+  const [view,setView]=useState("today");
+  const [selDate,setSelDate]=useState(todayKey());
+  const [entries,setEntries]=useState({});
+  const [weight,setWeight]=useState({});
+  const [calories,setCalories]=useState({});
+  const [customActs,setCustomActs]=useState([]);
+  const [showAdd,setShowAdd]=useState(false);
+  const [newAct,setNewAct]=useState({label:"",type:"checkbox",icon:"✨",category:"Custom"});
+  const [streak,setStreak]=useState(0);
+  const [toast,setToast]=useState(null);
 
-async function saveToStorage(key, value) {
-  try {
-    await window.storage.set(key, JSON.stringify(value));
-  } catch (e) { console.error("Storage error:", e); }
-}
+  useEffect(()=>{
+    const ent=stGet("diary_entries")||{};
+    const wt=stGet("diary_weight")||{};
+    const cal=stGet("diary_calories")||{};
+    const cust=stGet("diary_custom_activities")||[];
+    setEntries(ent);setWeight(wt);setCalories(cal);setCustomActs(cust);
+    let s=0,d=new Date();
+    for(let i=0;i<365;i++){const k=toKey(d);if(ent[k]&&Object.keys(ent[k]).length>0){s++;d.setDate(d.getDate()-1);}else break;}
+    setStreak(s);
+  },[]);
 
-export default function DailyDiary() {
-  const [view, setView] = useState("today"); // today | history | dashboard
-  const [selectedDate, setSelectedDate] = useState(getTodayKey());
-  const [activities, setActivities] = useState(DEFAULT_ACTIVITIES);
-  const [entries, setEntries] = useState({}); // { [dateKey]: { [activityId]: value } }
-  const [weight, setWeight] = useState({});
-  const [calories, setCalories] = useState({});
-  const [customActivities, setCustomActivities] = useState([]);
-  const [showAddActivity, setShowAddActivity] = useState(false);
-  const [newActivity, setNewActivity] = useState({ label: "", type: "checkbox", icon: "✨", category: "Custom" });
-  const [loading, setLoading] = useState(true);
-  const [streak, setStreak] = useState(0);
+  const flash=msg=>{setToast(msg);setTimeout(()=>setToast(null),2200)};
 
-  useEffect(() => {
-    async function init() {
-      const savedEntries = await loadFromStorage("diary_entries") || {};
-      const savedWeight = await loadFromStorage("diary_weight") || {};
-      const savedCalories = await loadFromStorage("diary_calories") || {};
-      const savedCustom = await loadFromStorage("diary_custom_activities") || [];
-      setEntries(savedEntries);
-      setWeight(savedWeight);
-      setCalories(savedCalories);
-      setCustomActivities(savedCustom);
-      setActivities([...DEFAULT_ACTIVITIES, ...savedCustom]);
-      // Calculate streak
-      let s = 0;
-      let d = new Date();
-      while (true) {
-        const k = toDateKey(d);
-        if (savedEntries[k] && Object.keys(savedEntries[k]).length > 0) { s++; d.setDate(d.getDate() - 1); }
-        else break;
-      }
-      setStreak(s);
-      setLoading(false);
-    }
-    init();
-  }, []);
+  const allActs=[...DEFAULT_ACTS,...customActs];
+  const dashActs=allActs.filter(a=>!EXCLUDED_DASHBOARD.includes(a.id));
 
-  const getEntry = (dateKey, actId) => entries[dateKey]?.[actId] ?? "";
-  const getWeight = (dateKey) => weight[dateKey] ?? "";
-  const getCalories = (dateKey) => calories[dateKey] ?? "";
+  const getE=(dk,id)=>entries[dk]?.[id]??"";
+  const getW=dk=>weight[dk]??"";
+  const getC=dk=>calories[dk]??"";
 
-  const setEntry = useCallback(async (dateKey, actId, val) => {
-    setEntries(prev => {
-      const updated = { ...prev, [dateKey]: { ...prev[dateKey], [actId]: val } };
-      saveToStorage("diary_entries", updated);
-      return updated;
-    });
-  }, []);
+  const setE=useCallback((dk,id,val)=>{
+    setEntries(prev=>{const u={...prev,[dk]:{...prev[dk],[id]:val}};stSet("diary_entries",u);return u;});
+  },[]);
+  const setWt=useCallback((dk,val)=>{
+    setWeight(prev=>{const u={...prev,[dk]:val};stSet("diary_weight",u);return u;});
+  },[]);
+  const setCal=useCallback((dk,val)=>{
+    setCalories(prev=>{const u={...prev,[dk]:val};stSet("diary_calories",u);return u;});
+  },[]);
 
-  const setWeightVal = useCallback(async (dateKey, val) => {
-    setWeight(prev => { const u = { ...prev, [dateKey]: val }; saveToStorage("diary_weight", u); return u; });
-  }, []);
-
-  const setCaloriesVal = useCallback(async (dateKey, val) => {
-    setCalories(prev => { const u = { ...prev, [dateKey]: val }; saveToStorage("diary_calories", u); return u; });
-  }, []);
-
-  const addCustomActivity = useCallback(async () => {
-    if (!newActivity.label.trim()) return;
-    const act = { ...newActivity, id: "custom_" + Date.now(), label: newActivity.label.trim() };
-    const updated = [...customActivities, act];
-    setCustomActivities(updated);
-    setActivities([...DEFAULT_ACTIVITIES, ...updated]);
-    await saveToStorage("diary_custom_activities", updated);
-    setNewActivity({ label: "", type: "checkbox", icon: "✨", category: "Custom" });
-    setShowAddActivity(false);
-  }, [newActivity, customActivities]);
-
-  const weightLoss = (dateKey) => {
-    const w = parseFloat(getWeight(dateKey));
-    const c = parseFloat(getCalories(dateKey));
-    if (!w || !c) return null;
-    return ((w * 32 - c) / 7700).toFixed(3);
+  const wlKg=dk=>{
+    const w=parseFloat(getW(dk)),c=parseFloat(getC(dk));
+    if(!w||!c)return null;
+    return((w*32-c)/7700).toFixed(3);
   };
 
-  const completedCount = (dateKey) => {
-    const dayEntries = entries[dateKey] || {};
-    return activities.filter(a => {
-      const v = dayEntries[a.id];
-      return a.type === "checkbox" ? v === true : v && v.toString().trim() !== "";
-    }).length;
+  const doneCount=dk=>{
+    const e=entries[dk]||{};
+    return allActs.filter(a=>{const v=e[a.id];return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
+  };
+  const pct=dk=>allActs.length?Math.round((doneCount(dk)/allActs.length)*100):0;
+
+  const allDates=[...new Set([...Object.keys(entries),...Object.keys(weight),...Object.keys(calories)])].sort().reverse();
+  const grouped=allActs.reduce((acc,a)=>{const c=a.category||"Custom";if(!acc[c])acc[c]=[];acc[c].push(a);return acc;},{});
+
+  const addAct=()=>{
+    if(!newAct.label.trim())return;
+    const act={...newAct,id:"custom_"+Date.now(),label:newAct.label.trim()};
+    const updated=[...customActs,act];
+    setCustomActs(updated);
+    stSet("diary_custom_activities",updated);
+    setNewAct({label:"",type:"checkbox",icon:"✨",category:"Custom"});
+    setShowAdd(false);flash("✅ Activity added!");
   };
 
-  const allDates = [...new Set([...Object.keys(entries), ...Object.keys(weight), ...Object.keys(calories)])].sort().reverse();
+  const NAV=[["today","📝","Today"],["history","📅","History"],["dashboard","📊","Stats"]];
 
-  const grouped = activities.reduce((acc, act) => {
-    const cat = act.category || "Custom";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(act);
-    return acc;
-  }, {});
+  return(
+    <div style={{fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f1f5f9",minHeight:"100vh"}}>
+      {toast&&<div style={{position:"fixed",top:20,right:20,background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:12,fontWeight:600,fontSize:14,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)"}}>{toast}</div>}
 
-  const completionPct = (dateKey) => {
-    const total = activities.length;
-    return total ? Math.round((completedCount(dateKey) / total) * 100) : 0;
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "'Georgia', serif", color: "#64748b", fontSize: 18 }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
-          <div>Loading your diary...</div>
+      <div style={{background:"linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",color:"#fff",padding:"24px 20px 0",marginBottom:16}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#475569",marginBottom:4}}>Daily Digital Diary</div>
+              <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>My Wellness Journal 📖</div>
+              <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{fmtDate(todayKey())}</div>
+            </div>
+            <div style={{textAlign:"center",flexShrink:0}}>
+              <div style={{background:"rgba(251,146,60,0.15)",border:"1.5px solid rgba(251,146,60,0.4)",borderRadius:14,padding:"10px 14px"}}>
+                <div style={{fontSize:26,fontWeight:900,color:"#fb923c"}}>🔥 {streak}</div>
+                <div style={{fontSize:9,color:"#64748b",fontWeight:700,letterSpacing:1.5}}>DAY STREAK</div>
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:4}}>
+            {NAV.map(([v,ico,lbl])=>(
+              <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"10px 0",borderRadius:"12px 12px 0 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:view===v?"#fff":"rgba(255,255,255,0.06)",color:view===v?"#1e293b":"#64748b",transition:"all 0.2s"}}>{ico} {lbl}</button>
+            ))}
+          </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", maxWidth: 780, margin: "0 auto", padding: "0 0 60px" }}>
-      {/* Header */}
-      <div style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#fff", padding: "28px 28px 20px", borderRadius: "0 0 24px 24px", marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{maxWidth:700,margin:"0 auto",padding:"0 16px 80px"}}>
+
+        {view==="today"&&(
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>Daily Digital Diary</div>
-            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>My Wellness Journal</div>
-            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>{formatDate(getTodayKey())}</div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ background: "rgba(251,146,60,0.2)", border: "1.5px solid #fb923c", borderRadius: 12, padding: "10px 16px" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#fb923c" }}>🔥 {streak}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: 1 }}>DAY STREAK</div>
-            </div>
-          </div>
-        </div>
-        {/* Nav */}
-        <div style={{ display: "flex", gap: 6, marginTop: 20 }}>
-          {[["today", "📝 Today"], ["history", "📅 History"], ["dashboard", "📊 Dashboard"]].map(([v, label]) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              padding: "7px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
-              background: view === v ? "#f97316" : "rgba(255,255,255,0.08)",
-              color: view === v ? "#fff" : "#94a3b8", transition: "all 0.2s"
-            }}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* TODAY VIEW */}
-      {view === "today" && (
-        <div style={{ padding: "0 16px" }}>
-          <DateBar dateKey={selectedDate} onDateChange={setSelectedDate} />
-          {/* Progress Bar */}
-          <div style={{ background: "#f8fafc", borderRadius: 16, padding: "16px 20px", marginBottom: 20, border: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: 14, color: "#334155" }}>Daily Completion</span>
-              <span style={{ fontWeight: 800, fontSize: 22, color: completionPct(selectedDate) === 100 ? "#22c55e" : "#f97316" }}>{completionPct(selectedDate)}%</span>
-            </div>
-            <div style={{ background: "#e2e8f0", borderRadius: 8, height: 10, overflow: "hidden" }}>
-              <div style={{ width: `${completionPct(selectedDate)}%`, height: "100%", background: completionPct(selectedDate) === 100 ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#f97316,#fb923c)", borderRadius: 8, transition: "width 0.5s ease" }} />
-            </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>{completedCount(selectedDate)} of {activities.length} tasks completed</div>
-          </div>
-
-          {/* Health Metrics */}
-          <div style={{ background: "linear-gradient(135deg,#1e293b,#0f172a)", borderRadius: 20, padding: "20px", marginBottom: 20, color: "#fff" }}>
-            <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14, color: "#94a3b8", letterSpacing: 1, textTransform: "uppercase" }}>⚖️ Health Metrics</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600 }}>WEIGHT (kg)</div>
-                <input type="number" step="0.1" placeholder="e.g. 72.5" value={getWeight(selectedDate)}
-                  onChange={e => setWeightVal(selectedDate, e.target.value)}
-                  style={{ width: "100%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontSize: 15, fontWeight: 700, boxSizing: "border-box" }} />
+            <DateBar dateKey={selDate} onChange={setSelDate}/>
+            <div style={{background:"#fff",borderRadius:18,padding:"18px 20px",marginBottom:16,border:"1.5px solid #e2e8f0"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <span style={{fontWeight:700,fontSize:14,color:"#334155"}}>Daily Progress</span>
+                <span style={{fontWeight:900,fontSize:24,color:pct(selDate)===100?"#22c55e":"#f97316"}}>{pct(selDate)}%</span>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600 }}>CALORIES EATEN</div>
-                <input type="number" placeholder="e.g. 1800" value={getCalories(selectedDate)}
-                  onChange={e => setCaloriesVal(selectedDate, e.target.value)}
-                  style={{ width: "100%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontSize: 15, fontWeight: 700, boxSizing: "border-box" }} />
+              <div style={{background:"#f1f5f9",borderRadius:10,height:12,overflow:"hidden"}}>
+                <div style={{width:`${pct(selDate)}%`,height:"100%",background:pct(selDate)===100?"linear-gradient(90deg,#22c55e,#16a34a)":"linear-gradient(90deg,#f97316,#fb923c)",borderRadius:10,transition:"width 0.5s ease"}}/>
               </div>
+              <div style={{fontSize:12,color:"#94a3b8",marginTop:6,fontWeight:500}}>{doneCount(selDate)} of {allActs.length} activities completed</div>
             </div>
-            {weightLoss(selectedDate) !== null && (
-              <div style={{ background: parseFloat(weightLoss(selectedDate)) > 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${parseFloat(weightLoss(selectedDate)) > 0 ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`, borderRadius: 12, padding: "12px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 1 }}>PROJECTED WEIGHT CHANGE TODAY</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: parseFloat(weightLoss(selectedDate)) > 0 ? "#4ade80" : "#f87171", marginTop: 4 }}>
-                  {parseFloat(weightLoss(selectedDate)) > 0 ? "▼" : "▲"} {Math.abs(parseFloat(weightLoss(selectedDate)))}g {parseFloat(weightLoss(selectedDate)) > 0 ? "loss" : "gain"}
+
+            <div style={{background:"linear-gradient(135deg,#1e293b,#0f172a)",borderRadius:20,padding:20,marginBottom:16,color:"#fff"}}>
+              <div style={{fontWeight:700,marginBottom:14,fontSize:13,color:"#64748b",letterSpacing:1.5,textTransform:"uppercase"}}>⚖️ Health Metrics</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}}>WEIGHT (kg)</div>
+                  <input type="number" step="0.1" placeholder="e.g. 72.5" value={getW(selDate)} onChange={e=>setWt(selDate,e.target.value)}
+                    style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}}/>
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>Formula: (weight × 32 − calories) ÷ 7700</div>
+                <div>
+                  <div style={{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}}>CALORIES EATEN</div>
+                  <input type="number" placeholder="e.g. 1800" value={getC(selDate)} onChange={e=>setCal(selDate,e.target.value)}
+                    style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}}/>
+                </div>
+              </div>
+              {wlKg(selDate)!==null&&(()=>{
+                const val=parseFloat(wlKg(selDate));
+                const isLoss=val>0;
+                return(
+                  <div style={{background:isLoss?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.12)",border:`1.5px solid ${isLoss?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.3)"}`,borderRadius:14,padding:"14px 18px"}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#475569",letterSpacing:1.5,marginBottom:6}}>PROJECTED WEIGHT CHANGE TODAY</div>
+                    <div style={{fontSize:26,fontWeight:900,color:isLoss?"#4ade80":"#f87171"}}>
+                      {isLoss?"▼":"▲"} {Math.abs(val).toFixed(3)} kg {isLoss?"loss":"gain"}
+                    </div>
+                    <div style={{fontSize:11,color:"#475569",marginTop:4}}>Formula: (weight × 32 − calories) ÷ 7700</div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {Object.entries(grouped).map(([cat,acts])=>{
+              const col=CAT_STYLE[cat]||CAT_STYLE.Custom;
+              const done=acts.filter(a=>{const v=entries[selDate]?.[a.id];return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
+              return(
+                <div key={cat} style={{background:col.bg,border:`1.5px solid ${col.border}`,borderRadius:18,marginBottom:14,overflow:"hidden"}}>
+                  <div style={{padding:"12px 18px 10px",borderBottom:`1px solid ${col.border}40`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <span style={{fontWeight:800,color:col.text,fontSize:14}}>{col.icon} {cat}</span>
+                    <span style={{fontSize:12,fontWeight:700,color:col.text,background:`${col.border}20`,padding:"3px 10px",borderRadius:20}}>{done}/{acts.length}</span>
+                  </div>
+                  <div style={{padding:"6px 14px 10px"}}>
+                    {acts.map(act=>(
+                      <ActRow key={act.id} act={act} value={getE(selDate,act.id)} onChange={val=>setE(selDate,act.id,val)}/>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {!showAdd?(
+              <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:15,background:"none",border:"2px dashed #cbd5e1",borderRadius:16,cursor:"pointer",color:"#64748b",fontWeight:700,fontSize:14,marginTop:4}}>
+                ＋ Add New Activity
+              </button>
+            ):(
+              <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20,marginTop:8}}>
+                <div style={{fontWeight:800,marginBottom:14,color:"#1e293b",fontSize:15}}>✨ Add Custom Activity</div>
+                <input placeholder="Activity name" value={newAct.label} onChange={e=>setNewAct(p=>({...p,label:e.target.value}))}
+                  style={{width:"100%",padding:"11px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",marginBottom:10,fontSize:14,color:"#1e293b"}}/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 72px 1fr",gap:8,marginBottom:14}}>
+                  <select value={newAct.type} onChange={e=>setNewAct(p=>({...p,type:e.target.value}))} style={{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}}>
+                    <option value="checkbox">✓ Checkbox</option>
+                    <option value="text">Aa Text</option>
+                    <option value="number">123 Number</option>
+                    <option value="time">⏰ Time</option>
+                  </select>
+                  <input placeholder="🎯" value={newAct.icon} onChange={e=>setNewAct(p=>({...p,icon:e.target.value}))}
+                    style={{padding:9,borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:20,textAlign:"center",color:"#1e293b"}}/>
+                  <select value={newAct.category} onChange={e=>setNewAct(p=>({...p,category:e.target.value}))} style={{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}}>
+                    {Object.keys(CAT_STYLE).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={addAct} style={{flex:1,padding:12,background:"#1e293b",color:"#fff",border:"none",borderRadius:12,fontWeight:800,cursor:"pointer",fontSize:14}}>Add Activity</button>
+                  <button onClick={()=>setShowAdd(false)} style={{padding:"12px 18px",background:"#f1f5f9",border:"none",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,color:"#64748b"}}>Cancel</button>
+                </div>
               </div>
             )}
           </div>
+        )}
 
-          {/* Activities by Category */}
-          {Object.entries(grouped).map(([cat, acts]) => {
-            const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Custom;
-            return (
-              <div key={cat} style={{ background: colors.bg, border: `1.5px solid ${colors.border}`, borderRadius: 18, marginBottom: 14, overflow: "hidden" }}>
-                <div style={{ padding: "12px 18px 8px", background: `${colors.border}20`, borderBottom: `1px solid ${colors.border}40` }}>
-                  <span style={{ fontWeight: 800, color: colors.text, fontSize: 14 }}>{colors.icon} {cat}</span>
-                </div>
-                <div style={{ padding: "10px 14px" }}>
-                  {acts.map(act => (
-                    <ActivityRow key={act.id} act={act} value={getEntry(selectedDate, act.id)}
-                      onChange={val => setEntry(selectedDate, act.id, val)} textColor={colors.text} />
-                  ))}
-                </div>
+        {view==="history"&&(
+          <div>
+            <div style={{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}}>All Entries ({allDates.length} days)</div>
+            {allDates.length===0&&(
+              <div style={{textAlign:"center",marginTop:60}}>
+                <div style={{fontSize:52,marginBottom:12}}>📭</div>
+                <div style={{color:"#94a3b8",fontWeight:600}}>No entries yet. Start tracking today!</div>
               </div>
-            );
-          })}
-
-          {/* Add Activity Button */}
-          {!showAddActivity ? (
-            <button onClick={() => setShowAddActivity(true)} style={{ width: "100%", padding: "14px", background: "none", border: "2px dashed #cbd5e1", borderRadius: 16, cursor: "pointer", color: "#64748b", fontWeight: 600, fontSize: 14, marginTop: 8 }}>
-              + Add New Activity
-            </button>
-          ) : (
-            <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: 18, marginTop: 8 }}>
-              <div style={{ fontWeight: 700, marginBottom: 12, color: "#1e293b" }}>✨ Add Custom Activity</div>
-              <input placeholder="Activity name" value={newActivity.label} onChange={e => setNewActivity(p => ({ ...p, label: e.target.value }))}
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #e2e8f0", marginBottom: 10, fontSize: 14, boxSizing: "border-box" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-                <select value={newActivity.type} onChange={e => setNewActivity(p => ({ ...p, type: e.target.value }))}
-                  style={{ padding: "8px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
-                  <option value="checkbox">Checkbox</option>
-                  <option value="text">Text</option>
-                  <option value="number">Number</option>
-                  <option value="time">Time</option>
-                </select>
-                <input placeholder="Icon (emoji)" value={newActivity.icon} onChange={e => setNewActivity(p => ({ ...p, icon: e.target.value }))}
-                  style={{ padding: "8px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 16, textAlign: "center" }} />
-                <select value={newActivity.category} onChange={e => setNewActivity(p => ({ ...p, category: e.target.value }))}
-                  style={{ padding: "8px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
-                  {Object.keys(CATEGORY_COLORS).map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={addCustomActivity} style={{ flex: 1, padding: "10px", background: "#1e293b", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: 14 }}>Add Activity</button>
-                <button onClick={() => setShowAddActivity(false)} style={{ padding: "10px 16px", background: "#f1f5f9", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14 }}>Cancel</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* HISTORY VIEW */}
-      {view === "history" && (
-        <div style={{ padding: "0 16px" }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>📅 All Entries</h2>
-          {allDates.length === 0 && <div style={{ color: "#94a3b8", textAlign: "center", marginTop: 40, fontSize: 16 }}>No entries yet. Start tracking today!</div>}
-          {allDates.map(dateKey => {
-            const pct = completionPct(dateKey);
-            const wl = weightLoss(dateKey);
-            return (
-              <div key={dateKey} onClick={() => { setSelectedDate(dateKey); setView("today"); }}
-                style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "16px 20px", marginBottom: 12, cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ fontWeight: 800, color: "#1e293b", fontSize: 15 }}>{formatDate(dateKey)}</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{completedCount(dateKey)}/{activities.length} tasks · {getWeight(dateKey) ? `${getWeight(dateKey)} kg` : "No weight"} · {getCalories(dateKey) ? `${getCalories(dateKey)} cal` : "No calories"}</div>
+            )}
+            {allDates.map(dk=>{
+              const p=pct(dk),wlv=wlKg(dk);
+              return(
+                <div key={dk} onClick={()=>{setSelDate(dk);setView("today");}}
+                  style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:"16px 20px",marginBottom:10,cursor:"pointer",transition:"all 0.2s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.08)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div>
+                      <div style={{fontWeight:800,color:"#1e293b",fontSize:15}}>{fmtDate(dk)}</div>
+                      <div style={{fontSize:12,color:"#64748b",marginTop:3}}>
+                        {doneCount(dk)}/{allActs.length} tasks
+                        {getW(dk)?` · ${getW(dk)}kg`:""}
+                        {getC(dk)?` · ${getC(dk)} cal`:""}
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                      <div style={{fontWeight:900,fontSize:20,color:p===100?"#22c55e":p>60?"#f97316":"#ef4444"}}>{p}%</div>
+                      {wlv&&<div style={{fontSize:12,color:parseFloat(wlv)>0?"#22c55e":"#ef4444",fontWeight:700}}>{parseFloat(wlv)>0?"▼":"▲"}{Math.abs(parseFloat(wlv)).toFixed(3)} kg</div>}
+                    </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: pct === 100 ? "#22c55e" : pct > 60 ? "#f97316" : "#ef4444" }}>{pct}%</div>
-                    {wl && <div style={{ fontSize: 12, color: parseFloat(wl) > 0 ? "#22c55e" : "#ef4444", fontWeight: 600 }}>{parseFloat(wl) > 0 ? "▼" : "▲"}{Math.abs(parseFloat(wl))}g</div>}
-                  </div>
-                </div>
-                <div style={{ background: "#f1f5f9", borderRadius: 6, height: 6, marginTop: 10, overflow: "hidden" }}>
-                  <div style={{ width: `${pct}%`, height: "100%", background: pct === 100 ? "#22c55e" : "#f97316", borderRadius: 6 }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* DASHBOARD VIEW */}
-      {view === "dashboard" && (
-        <div style={{ padding: "0 16px" }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>📊 Dashboard</h2>
-          {/* Summary Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-            {[
-              ["Total Days Tracked", allDates.length, "📅", "#3b82f6"],
-              ["Current Streak", streak + " days", "🔥", "#f97316"],
-              ["Avg Completion", (allDates.length ? Math.round(allDates.reduce((s, d) => s + completionPct(d), 0) / allDates.length) : 0) + "%", "✅", "#22c55e"],
-              ["Total Activities", activities.length, "📋", "#a855f7"],
-            ].map(([label, val, icon, color]) => (
-              <div key={label} style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "18px 16px" }}>
-                <div style={{ fontSize: 24 }}>{icon}</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color, marginTop: 8 }}>{val}</div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2, fontWeight: 600 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Weight Trend */}
-          <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, color: "#1e293b", marginBottom: 14, fontSize: 15 }}>⚖️ Weight Trend (last 10 days)</div>
-            <WeightChart data={allDates.slice(0, 10).reverse().map(d => ({ date: d.slice(5), w: parseFloat(getWeight(d)) || null }))} />
-          </div>
-
-          {/* Activity Completion Chart */}
-          <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, color: "#1e293b", marginBottom: 14, fontSize: 15 }}>✅ Completion Rate (last 7 days)</div>
-            <CompletionChart data={allDates.slice(0, 7).reverse().map(d => ({ date: d.slice(5), pct: completionPct(d) }))} />
-          </div>
-
-          {/* Most missed activities */}
-          <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: 20 }}>
-            <div style={{ fontWeight: 800, color: "#1e293b", marginBottom: 14, fontSize: 15 }}>📌 Activity Completion Rate</div>
-            {activities.slice(0, 10).map(act => {
-              const total = allDates.length;
-              const done = allDates.filter(d => {
-                const v = entries[d]?.[act.id];
-                return act.type === "checkbox" ? v === true : v && v.toString().trim() !== "";
-              }).length;
-              const pct = total ? Math.round((done / total) * 100) : 0;
-              return (
-                <div key={act.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                    <span style={{ color: "#334155", fontWeight: 600 }}>{act.icon} {act.label}</span>
-                    <span style={{ color: "#64748b" }}>{done}/{total} days ({pct}%)</span>
-                  </div>
-                  <div style={{ background: "#f1f5f9", borderRadius: 6, height: 7, overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: pct > 80 ? "#22c55e" : pct > 50 ? "#f97316" : "#ef4444", borderRadius: 6 }} />
+                  <div style={{background:"#f1f5f9",borderRadius:6,height:7,marginTop:12,overflow:"hidden"}}>
+                    <div style={{width:`${p}%`,height:"100%",background:p===100?"#22c55e":p>60?"#f97316":"#ef4444",borderRadius:6}}/>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        )}
 
-function ActivityRow({ act, value, onChange, textColor }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", padding: "8px 4px", borderBottom: "1px solid rgba(0,0,0,0.05)", gap: 10 }}>
-      <span style={{ fontSize: 18, minWidth: 28, textAlign: "center" }}>{act.icon}</span>
-      <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{act.label}</span>
-      {act.type === "checkbox" && (
-        <div onClick={() => onChange(!value)} style={{
-          width: 26, height: 26, borderRadius: 8, border: `2px solid ${value ? "#22c55e" : "#cbd5e1"}`,
-          background: value ? "#22c55e" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0
-        }}>
-          {value && <span style={{ color: "#fff", fontSize: 14, fontWeight: 900 }}>✓</span>}
-        </div>
-      )}
-      {act.type === "text" && (
-        <input value={value} onChange={e => onChange(e.target.value)} placeholder="Add note..."
-          style={{ width: 130, padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, background: "rgba(255,255,255,0.8)" }} />
-      )}
-      {act.type === "number" && (
-        <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder="0"
-          style={{ width: 80, padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, background: "rgba(255,255,255,0.8)" }} />
-      )}
-      {act.type === "time" && (
-        <input type="time" value={value} onChange={e => onChange(e.target.value)}
-          style={{ width: 100, padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, background: "rgba(255,255,255,0.8)" }} />
-      )}
-    </div>
-  );
-}
+        {view==="dashboard"&&(
+          <div>
+            <div style={{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}}>Analytics Dashboard</div>
+            <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20,marginBottom:20}}>
+              <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>⚖️ Weight Trend</div>
+              <div style={{fontSize:12,color:"#94a3b8",marginBottom:14}}>Last 10 days</div>
+              <WeightChart data={allDates.slice(0,10).reverse().map(d=>({date:d.slice(5),w:parseFloat(getW(d))||null}))}/>
+            </div>
+            <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20}}>
+              <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>📌 Activity Completion Rate</div>
+              <div style={{fontSize:12,color:"#94a3b8",marginBottom:20}}>All tracked days · Breakfast, Lunch & Dinner excluded</div>
+              {allDates.length===0?(
+                <div style={{color:"#94a3b8",textAlign:"center",padding:"20px 0",fontSize:13}}>No data yet — start tracking today!</div>
+              ):dashActs.map(act=>{
+                const total=allDates.length;
+                const done=allDates.filter(d=>{const v=entries[d]?.[act.id];return act.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
+                const p=total?Math.round((done/total)*100):0;
+                const bar=p>80?"#22c55e":p>50?"#f97316":"#ef4444";
+                return(
+                  <div key={act.id} style={{marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,marginBottom:5}}>
+                      <span style={{color:"#334155",fontWeight:600}}>{act.icon} {act.label}</span>
+                      <span style={{color:bar,fontWeight:700,minWidth:70,textAlign:"right"}}>{done}/{total} · {p}%</span>
+                    </div>
+                    <div style={{background:"#f1f5f9",borderRadius:6,height:9,overflow:"hidden"}}>
+                      <div style={{width:`${p}%`,height:"100%",background:bar,borderRadius:6,transition:"width 0.4s"}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-function DateBar({ dateKey, onDateChange }) {
-  const prev = () => {
-    const d = new Date(dateKey + "T00:00:00");
-    d.setDate(d.getDate() - 1);
-    onDateChange(toDateKey(d));
-  };
-  const next = () => {
-    const d = new Date(dateKey + "T00:00:00");
-    d.setDate(d.getDate() + 1);
-    if (toDateKey(d) <= getTodayKey()) onDateChange(toDateKey(d));
-  };
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, background: "#f8fafc", borderRadius: 14, padding: "10px 16px", border: "1px solid #e2e8f0" }}>
-      <button onClick={prev} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#64748b" }}>‹</button>
-      <div style={{ textAlign: "center" }}>
-        <input type="date" value={dateKey} max={getTodayKey()} onChange={e => onDateChange(e.target.value)}
-          style={{ background: "none", border: "none", fontWeight: 700, fontSize: 14, color: "#1e293b", cursor: "pointer", textAlign: "center" }} />
-        {dateKey === getTodayKey() && <span style={{ display: "block", fontSize: 11, color: "#f97316", fontWeight: 700 }}>TODAY</span>}
       </div>
-      <button onClick={next} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: dateKey === getTodayKey() ? "#e2e8f0" : "#64748b" }}>›</button>
     </div>
   );
 }
 
-function WeightChart({ data }) {
-  const valid = data.filter(d => d.w !== null);
-  if (valid.length < 2) return <div style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>Track weight for at least 2 days to see trend</div>;
-  const min = Math.min(...valid.map(d => d.w)) - 0.5;
-  const max = Math.max(...valid.map(d => d.w)) + 0.5;
-  const H = 120, W = 680;
-  const pts = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * (W - 60) + 30;
-    const y = d.w ? H - ((d.w - min) / (max - min)) * (H - 20) : null;
-    return { x, y, ...d };
-  });
-  const pathD = pts.filter(p => p.y).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  return (
-    <svg viewBox={`0 0 ${W} ${H + 20}`} style={{ width: "100%", height: "auto" }}>
-      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" /><stop offset="100%" stopColor="#3b82f6" stopOpacity="0" /></linearGradient></defs>
-      <path d={pathD + ` L ${pts[pts.length - 1].x} ${H} L 30 ${H} Z`} fill="url(#wg)" />
-      <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.filter(p => p.y).map(p => (
-        <g key={p.date}>
-          <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" />
-          <text x={p.x} y={H + 16} textAnchor="middle" fontSize="10" fill="#94a3b8">{p.date}</text>
-          <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="10" fill="#3b82f6" fontWeight="700">{p.w}kg</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function CompletionChart({ data }) {
-  if (!data.length) return <div style={{ color: "#94a3b8", textAlign: "center", padding: 20 }}>No data yet</div>;
-  const W = 680, H = 100;
-  return (
-    <svg viewBox={`0 0 ${W} ${H + 24}`} style={{ width: "100%", height: "auto" }}>
-      {data.map((d, i) => {
-        const bw = (W - 60) / data.length - 8;
-        const x = 30 + i * ((W - 60) / data.length);
-        const bh = Math.max(4, (d.pct / 100) * H);
-        const color = d.pct === 100 ? "#22c55e" : d.pct > 60 ? "#f97316" : "#ef4444";
-        return (
-          <g key={d.date}>
-            <rect x={x} y={H - bh} width={bw} height={bh} rx="5" fill={color} opacity="0.85" />
-            <text x={x + bw / 2} y={H + 14} textAnchor="middle" fontSize="10" fill="#94a3b8">{d.date}</text>
-            <text x={x + bw / 2} y={H - bh - 4} textAnchor="middle" fontSize="10" fill={color} fontWeight="700">{d.pct}%</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
