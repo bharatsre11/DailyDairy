@@ -24,28 +24,28 @@ const {useState,useEffect,useCallback}=React;
 const EXCLUDED_DASHBOARD=["breakfast","lunch","dinner"];
 
 const DEFAULT_ACTS=[
-  {id:"wake_up",   label:"Wake Up Time",                type:"time",    icon:"🌅",category:"Morning"},
-  {id:"exercise",  label:"Exercise Done",               type:"checkbox",icon:"💪",category:"Morning"},
-  {id:"green_tea", label:"Green Tea",                   type:"checkbox",icon:"🍵",category:"Morning"},
-  {id:"dry_fruits",label:"Badam & Seeds",                  type:"checkbox",icon:"🥜",category:"Morning"},
-  {id:"breakfast", label:"Breakfast",                   type:"text",    icon:"🍳",category:"Meals"},
-  {id:"lunch",     label:"Lunch",                       type:"text",    icon:"🍱",category:"Meals"},
-  {id:"milk_makhana",label:"Milk & Makhana",            type:"checkbox",icon:"🥛",category:"Meals"},
-  {id:"dinner",    label:"Dinner",                      type:"text",    icon:"🍽️",category:"Meals"},
-  {id:"walk",      label:"Walk",                        type:"text",    icon:"🚶",category:"Fitness"},
-  {id:"play_time", label:"Play Time",                   type:"text",    icon:"🏃",category:"Fitness"},
-  {id:"khura_fix_1",label:"Khura Fix No.1",             type:"checkbox",icon:"💊",category:"Supplements"},
-  {id:"khura_fix_2",label:"Khura Fix No.2",             type:"checkbox",icon:"💊",category:"Supplements"},
-  {id:"khura_fix_3",label:"Khura Fix No.3",             type:"checkbox",icon:"💊",category:"Supplements"},
-  {id:"multivitamin",label:"Multivitamin",              type:"checkbox",icon:"🧪",category:"Supplements"},
-  {id:"neurobion", label:"Neurobion Forte",             type:"checkbox",icon:"🧬",category:"Supplements"},
-  {id:"liver_tonic",label:"Liver Tonic",                type:"checkbox",icon:"🫀",category:"Supplements"},
-  {id:"folic_acid",label:"Folic Acid",                  type:"checkbox",icon:"🔬",category:"Supplements"},
-  {id:"office",    label:"Office",                      type:"checkbox",icon:"🏢",category:"Work & Study"},
-  {id:"study",     label:"Study",                       type:"checkbox",icon:"📚",category:"Work & Study"},
-  {id:"extra_1",   label:"Extra-1",                     type:"checkbox",icon:"⭐",category:"Work & Study"},
-  {id:"extra_2",   label:"Extra-2",                     type:"checkbox",icon:"⭐",category:"Work & Study"},
-  {id:"future_prep",label:"Future Prep (Teaching Kids)",type:"checkbox",icon:"👨‍🏫",category:"Work & Study"},
+  {id:"wake_up",    label:"Wake Up Time",                 type:"time",    icon:"🌅",category:"Morning"},
+  {id:"exercise",   label:"Exercise Done",                type:"checkbox",icon:"💪",category:"Morning"},
+  {id:"green_tea",  label:"Green Tea",                    type:"checkbox",icon:"🍵",category:"Morning"},
+  {id:"dry_fruits", label:"Wallnuts",                   type:"checkbox",icon:"🥜",category:"Morning"},
+  {id:"breakfast",  label:"Breakfast",                    type:"text",    icon:"🍳",category:"Meals"},
+  {id:"lunch",      label:"Lunch",                        type:"text",    icon:"🍱",category:"Meals"},
+  {id:"milk_makhana",label:"Milk & Makhana",              type:"checkbox",icon:"🥛",category:"Meals"},
+  {id:"dinner",     label:"Dinner",                       type:"text",    icon:"🍽️",category:"Meals"},
+  {id:"walk",       label:"Walk",                         type:"text",    icon:"🚶",category:"Fitness"},
+  {id:"play_time",  label:"Play Time",                    type:"text",    icon:"🏃",category:"Fitness"},
+  {id:"khura_fix_1",label:"Khura Fix No.1",               type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"khura_fix_2",label:"Khura Fix No.2",               type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"khura_fix_3",label:"Khura Fix No.3",               type:"checkbox",icon:"💊",category:"Supplements"},
+  {id:"multivitamin",label:"Multivitamin",                type:"checkbox",icon:"🧪",category:"Supplements"},
+  {id:"neurobion",  label:"Neurobion Forte",              type:"checkbox",icon:"🧬",category:"Supplements"},
+  {id:"liver_tonic",label:"Liver Tonic",                  type:"checkbox",icon:"🫀",category:"Supplements"},
+  {id:"folic_acid", label:"Folic Acid",                   type:"checkbox",icon:"🔬",category:"Supplements"},
+  {id:"office",     label:"Office",                       type:"checkbox",icon:"🏢",category:"Work & Study"},
+  {id:"study",      label:"Study",                        type:"checkbox",icon:"📚",category:"Work & Study"},
+  {id:"extra_1",    label:"Extra-1",                      type:"checkbox",icon:"⭐",category:"Work & Study"},
+  {id:"extra_2",    label:"Extra-2",                      type:"checkbox",icon:"⭐",category:"Work & Study"},
+  {id:"future_prep",label:"Future Prep (Teaching Kids)",  type:"checkbox",icon:"👨‍🏫",category:"Work & Study"},
 ];
 
 const CAT_STYLE={
@@ -57,12 +57,22 @@ const CAT_STYLE={
   "Custom":      {bg:"#F8FAFC",border:"#94A3B8",text:"#334155",icon:"✨"},
 };
 
-const toKey=d=>d.toISOString().split("T")[0];
-const todayKey=()=>toKey(new Date());
-const fmtDate=s=>{
-  const d=new Date(s+"T00:00:00");
-  return d.toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-};
+// ── Timezone-safe date helpers ────────────────────────────────
+function todayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function addDays(dateKey,n){
+  const [y,m,d]=dateKey.split("-").map(Number);
+  const dt=new Date(y,m-1,d);   // local midnight — no timezone shift
+  dt.setDate(dt.getDate()+n);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+}
+function fmtDate(dateKey){
+  const [y,m,d]=dateKey.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+}
+// ─────────────────────────────────────────────────────────────
 
 function stGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}}
 function stSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
@@ -86,22 +96,22 @@ function ActRow({act,value,onChange}){
 
 function DateBar({dateKey,onChange}){
   const isToday=dateKey===todayKey();
-  const go=n=>{const d=new Date(dateKey+"T00:00:00");d.setDate(d.getDate()+n);if(toKey(d)<=todayKey())onChange(toKey(d));};
   return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,background:"#fff",borderRadius:14,padding:"10px 16px",border:"1.5px solid #e2e8f0"}}>
-      <button onClick={()=>go(-1)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>‹</button>
+      <button onClick={()=>onChange(addDays(dateKey,-1))} style={{background:"#f1f5f9",border:"none",cursor:"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>‹</button>
       <div style={{textAlign:"center"}}>
         <div style={{fontWeight:800,fontSize:14,color:"#1e293b"}}>{fmtDate(dateKey)}</div>
         {isToday&&<span style={{fontSize:11,color:"#f97316",fontWeight:800,letterSpacing:1}}>TODAY</span>}
       </div>
-      <button onClick={()=>go(1)} style={{background:"#f1f5f9",border:"none",cursor:isToday?"default":"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:isToday?"#e2e8f0":"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>›</button>
+      <button onClick={()=>{if(!isToday)onChange(addDays(dateKey,1));}}
+        style={{background:"#f1f5f9",border:"none",cursor:isToday?"not-allowed":"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:isToday?"#e2e8f0":"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>›</button>
     </div>
   );
 }
 
 function WeightChart({data}){
   const valid=data.filter(d=>d.w!==null);
-  if(valid.length<2)return <div style={{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}}>Track weight on at least 2 days to see the trend</div>;
+  if(valid.length<2)return<div style={{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}}>Track weight on at least 2 days to see the trend</div>;
   const vals=valid.map(d=>d.w);
   const mn=Math.min(...vals)-0.5,mx=Math.max(...vals)+0.5;
   const H=110,W=600;
@@ -143,8 +153,11 @@ function App(){
     const cal=stGet("diary_calories")||{};
     const cust=stGet("diary_custom_activities")||[];
     setEntries(ent);setWeight(wt);setCalories(cal);setCustomActs(cust);
-    let s=0,d=new Date();
-    for(let i=0;i<365;i++){const k=toKey(d);if(ent[k]&&Object.keys(ent[k]).length>0){s++;d.setDate(d.getDate()-1);}else break;}
+    let s=0,dk=todayKey();
+    for(let i=0;i<365;i++){
+      if(ent[dk]&&Object.keys(ent[dk]).length>0){s++;dk=addDays(dk,-1);}
+      else break;
+    }
     setStreak(s);
   },[]);
 
@@ -186,8 +199,7 @@ function App(){
     if(!newAct.label.trim())return;
     const act={...newAct,id:"custom_"+Date.now(),label:newAct.label.trim()};
     const updated=[...customActs,act];
-    setCustomActs(updated);
-    stSet("diary_custom_activities",updated);
+    setCustomActs(updated);stSet("diary_custom_activities",updated);
     setNewAct({label:"",type:"checkbox",icon:"✨",category:"Custom"});
     setShowAdd(false);flash("✅ Activity added!");
   };
