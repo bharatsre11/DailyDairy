@@ -21,19 +21,17 @@ input:focus,select:focus{border-color:#f97316!important}
 <script type="text/babel">
 const {useState,useEffect,useCallback}=React;
 
-const EXCLUDED_DASHBOARD=["breakfast","lunch","dinner"];
+const EXCLUDED_DASHBOARD=["future_prep"];
 
 const DEFAULT_ACTS=[
   {id:"wake_up",    label:"Wake Up Time",                 type:"time",    icon:"🌅",category:"Morning"},
   {id:"exercise",   label:"Exercise Done",                type:"checkbox",icon:"💪",category:"Morning"},
-  {id:"green_tea",  label:"Green Tea",                    type:"checkbox",icon:"🍵",category:"Morning"},
+  {id:"green_tea",  label:"Green Tea",                    type:"checkbox",icon:"🍵",category:"Meals"},
   {id:"dry_fruits", label:"Wallnuts",                   type:"checkbox",icon:"🥜",category:"Morning"},
-  {id:"breakfast",  label:"Breakfast",                    type:"text",    icon:"🍳",category:"Meals"},
-  {id:"lunch",      label:"Lunch",                        type:"text",    icon:"🍱",category:"Meals"},
+  {id:"fruit",      label:"Fruit",                        type:"checkbox",    icon:"🍱",category:"Meals"},
   {id:"milk_makhana",label:"Milk & Makhana",              type:"checkbox",icon:"🥛",category:"Meals"},
-  {id:"dinner",     label:"Dinner",                       type:"text",    icon:"🍽️",category:"Meals"},
-  {id:"walk",       label:"Walk",                         type:"text",    icon:"🚶",category:"Fitness"},
-  {id:"play_time",  label:"Play Time",                    type:"text",    icon:"🏃",category:"Fitness"},
+  {id:"walk",       label:"Walk Steps",                         type:"number",    icon:"🚶",category:"Fitness"},
+  {id:"play_time",  label:"Play Time",                    type:"number",    icon:"🏃",category:"Fitness"},
   {id:"khura_fix_1",label:"Khura Fix No.1",               type:"checkbox",icon:"💊",category:"Supplements"},
   {id:"khura_fix_2",label:"Khura Fix No.2",               type:"checkbox",icon:"💊",category:"Supplements"},
   {id:"khura_fix_3",label:"Khura Fix No.3",               type:"checkbox",icon:"💊",category:"Supplements"},
@@ -131,6 +129,65 @@ function WeightChart({data}){
           <text x={p.x} y={p.y-9} textAnchor="middle" fontSize="10" fill="#1e3a8a" fontWeight="700">{p.w}kg</text>
         </g>
       ):null)}
+    </svg>
+  );
+}
+
+function TrendChart({data, unit=""}){
+  const valid=data.filter(d=>d.value!==null);
+  if(valid.length<2){
+    return (
+      <div style={{
+        color:"#94a3b8",
+        textAlign:"center",
+        padding:"24px 0",
+        fontSize:13
+      }}>
+        Track at least 2 days to see the trend
+      </div>
+    );
+  }
+
+  const vals=valid.map(d=>d.value);
+  const mn=Math.min(...vals);
+  const mx=Math.max(...vals);
+  const H=110,W=600;
+
+  const pts=data.map((d,i)=>({
+    ...d,
+    x:30+(i/(data.length-1))*(W-60),
+    y:d.value!==null
+      ? H-((d.value-mn)/(mx-mn||1))*(H-20)
+      : null
+  }));
+
+  const lp=pts.filter(p=>p.y!==null);
+
+  const path=lp.map((p,i)=>
+    `${i===0?"M":"L"} ${p.x} ${p.y}`
+  ).join(" ");
+
+  return(
+    <svg viewBox={`0 0 ${W} ${H+24}`} style={{width:"100%"}}>
+      <path
+        d={path}
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth="2.5"
+      />
+      {lp.map((p,i)=>(
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="4"/>
+          <text
+            x={p.x}
+            y={H+18}
+            textAnchor="middle"
+            fontSize="10"
+          >
+            {p.date}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }
@@ -373,7 +430,49 @@ function App(){
               <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>⚖️ Weight Trend</div>
               <div style={{fontSize:12,color:"#94a3b8",marginBottom:14}}>Last 10 days</div>
               <WeightChart data={allDates.slice(0,10).reverse().map(d=>({date:d.slice(5),w:parseFloat(getW(d))||null}))}/>
-            </div>
+              <div
+  style={{
+    background:"#fff",
+    border:"1.5px solid #e2e8f0",
+    borderRadius:18,
+    padding:20,
+    marginBottom:20
+  }}
+>
+  <div
+    style={{
+      fontWeight:800,
+      color:"#1e293b",
+      fontSize:15,
+      marginBottom:4
+    }}
+  >
+    🚶 Walk Trend
+  </div>
+
+  <div
+    style={{
+      fontSize:12,
+      color:"#94a3b8",
+      marginBottom:14
+    }}
+  >
+    Last 10 days
+  </div>
+
+  <TrendChart
+    data={allDates
+      .slice(0,10)
+      .reverse()
+      .map(d=>({
+        date:d.slice(5),
+        value:parseFloat(getE(d,"walk"))||null
+      }))
+    }
+    unit="steps"
+  />
+</div>
+                </div>
             <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20}}>
               <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>📌 Activity Completion Rate</div>
               <div style={{fontSize:12,color:"#94a3b8",marginBottom:20}}>All tracked days · Breakfast, Lunch & Dinner excluded</div>
