@@ -26,24 +26,14 @@ const EXCLUDED_DASHBOARD=["play_time"];
 const DEFAULT_ACTS=[
   {id:"wake_up",    label:"Wake Up Time",                 type:"time",    icon:"🌅",category:"Morning"},
   {id:"exercise",   label:"Exercise Done",                type:"checkbox",icon:"💪",category:"Morning"},
-  {id:"green_tea",  label:"Green Tea",                    type:"checkbox",icon:"🍵",category:"Meals"},
-  {id:"dry_fruits", label:"Walnuts",                    type:"checkbox",icon:"🥜",category:"Meals"},
+  {id:"morning_drink",  label:"Kadha",                    type:"checkbox",icon:"🍵",category:"Morning"},
+  {id:"dry_fruits", label:"Dry Fruits",                    type:"checkbox",icon:"🥜",category:"Meals"},
   {id:"fruits",      label:"Fruits",                        type:"checkbox",    icon:"🍱",category:"Meals"},
   {id:"milk_makhana",label:"Milk & Makhana",              type:"checkbox",icon:"🥛",category:"Meals"},
   {id:"walk",       label:"Walk Steps",                         type:"number",    icon:"🚶",category:"Fitness"},
   {id:"play_time",  label:"Play Time",                    type:"number",    icon:"🏃",category:"Fitness"},
-  {id:"khura_fix_1",label:"Khura Fix No.1",               type:"checkbox",icon:"💊",category:"Supplements"},
-  {id:"khura_fix_2",label:"Khura Fix No.2",               type:"checkbox",icon:"💊",category:"Supplements"},
-  {id:"khura_fix_3",label:"Khura Fix No.3",               type:"checkbox",icon:"💊",category:"Supplements"},
   {id:"multivitamin",label:"Multivitamin",                type:"checkbox",icon:"🧪",category:"Supplements"},
-  {id:"neurobion",  label:"Neurobion Forte",              type:"checkbox",icon:"🧬",category:"Supplements"},
-  {id:"liver_tonic",label:"Liver Tonic",                  type:"checkbox",icon:"🫀",category:"Supplements"},
-  {id:"folic_acid", label:"Folic Acid",                   type:"checkbox",icon:"🔬",category:"Supplements"},
-  {id:"office",     label:"Office",                       type:"checkbox",icon:"🏢",category:"Work & Study"},
-  {id:"study",      label:"Study",                        type:"checkbox",icon:"📚",category:"Work & Study"},
-  {id:"extra_1",    label:"Business Work",                      type:"checkbox",icon:"⭐",category:"Extra-Things"},
-  {id:"extra_2",    label:"Guitar Practice",                      type:"checkbox",icon:"⭐",category:"Extra-Things"},
-  {id:"future_prep",label:"Future Prep (Teaching Kids)",  type:"checkbox",icon:"👨‍🏫",category:"Extra-Things"},
+  {id:"work",     label:"Work",                       type:"checkbox",icon:"🏢",category:"Work & Study"}
 ];
 
 const CAT_STYLE={
@@ -108,84 +98,275 @@ function DateBar({dateKey,onChange}){
   );
 }
 
-function WeightChart({data}){
-  const valid=data.filter(d=>d.w!==null);
-  if(valid.length<2)return<div style={{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}}>Track weight on at least 2 days to see the trend</div>;
-  const vals=valid.map(d=>d.w);
-  const mn=Math.min(...vals)-0.5,mx=Math.max(...vals)+0.5;
-  const H=110,W=600;
-  const pts=data.map((d,i)=>({...d,x:30+(i/(data.length-1))*(W-60),y:d.w?H-((d.w-mn)/(mx-mn))*(H-20):null}));
-  const lp=pts.filter(p=>p.y!==null);
-  const path=lp.map((p,i)=>`${i===0?"M":"L"} ${p.x} ${p.y}`).join(" ");
-  const area=path+` L ${lp[lp.length-1].x} ${H} L ${lp[0].x} ${H} Z`;
-  return(
-    <svg viewBox={`0 0 ${W} ${H+24}`} style={{width:"100%",height:"auto",overflow:"visible"}}>
-      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient></defs>
-      <path d={area} fill="url(#wg)"/>
-      <path d={path} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      {pts.map((p,i)=>p.y?(
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r="4.5" fill="#3b82f6"/>
-          <text x={p.x} y={H+18} textAnchor="middle" fontSize="10" fill="#94a3b8">{p.date}</text>
-          <text x={p.x} y={p.y-9} textAnchor="middle" fontSize="10" fill="#1e3a8a" fontWeight="700">{p.w}kg</text>
-        </g>
-      ):null)}
-    </svg>
-  );
-}
+function WeightChart({ data }) {
+  const valid = data.filter(d => d.w !== null);
 
-function TrendChart({data, unit=""}){
-  const valid=data.filter(d=>d.value!==null);
-  if(valid.length<2){
+  if (valid.length < 2) {
     return (
-      <div style={{
-        color:"#94a3b8",
-        textAlign:"center",
-        padding:"24px 0",
-        fontSize:13
-      }}>
-        Track at least 2 days to see the trend
+      <div
+        style={{
+          color: "#94a3b8",
+          textAlign: "center",
+          padding: "24px 0",
+          fontSize: 13
+        }}
+      >
+        Track weight on at least 2 days to see the trend
       </div>
     );
   }
 
-  const vals=valid.map(d=>d.value);
-  const mn=Math.min(...vals);
-  const mx=Math.max(...vals);
-  const H=110,W=600;
+  const vals = valid.map(d => d.w);
 
-  const pts=data.map((d,i)=>({
+  const mn = Math.min(...vals) - 0.5;
+  const mx = Math.max(...vals) + 0.5;
+
+  const H = 110;
+  const W = 600;
+
+  const pts = data.map((d, i) => ({
     ...d,
-    x:30+(i/(data.length-1))*(W-60),
-    y:d.value!==null
-      ? H-((d.value-mn)/(mx-mn||1))*(H-20)
-      : null
+    x: 45 + (i / (data.length - 1)) * (W - 70),
+    y:
+      d.w !== null
+        ? H - ((d.w - mn) / (mx - mn || 1)) * (H - 20)
+        : null
   }));
 
-  const lp=pts.filter(p=>p.y!==null);
+  const lp = pts.filter(p => p.y !== null);
 
-  const path=lp.map((p,i)=>
-    `${i===0?"M":"L"} ${p.x} ${p.y}`
-  ).join(" ");
+  const path = lp
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+    .join(" ");
 
-  return(
-    <svg viewBox={`0 0 ${W} ${H+24}`} style={{width:"100%"}}>
+  const area =
+    path +
+    ` L ${lp[lp.length - 1].x} ${H} L ${lp[0].x} ${H} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H + 24}`}
+      style={{
+        width: "100%",
+        height: "auto",
+        overflow: "visible"
+      }}
+    >
+      <defs>
+        <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Y Axis Scale + Grid */}
+      {[0, 1, 2, 3, 4].map(i => {
+        const value = (mx - ((mx - mn) / 4) * i).toFixed(1);
+        const y = 10 + (i * (H - 20)) / 4;
+
+        return (
+          <g key={i}>
+            <line
+              x1="40"
+              y1={y}
+              x2={W}
+              y2={y}
+              stroke="#e2e8f0"
+              strokeDasharray="3 3"
+            />
+
+            <text
+              x="2"
+              y={y + 4}
+              fontSize="10"
+              fill="#64748b"
+            >
+              {value} kg
+            </text>
+          </g>
+        );
+      })}
+
+      <path d={area} fill="url(#wg)" />
+
       <path
         d={path}
         fill="none"
         stroke="#3b82f6"
         strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      {lp.map((p,i)=>(
+
+      {pts.map((p, i) =>
+        p.y !== null ? (
+          <g key={i}>
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r="4.5"
+              fill="#3b82f6"
+            />
+
+            <text
+              x={p.x}
+              y={H + 18}
+              textAnchor="middle"
+              fontSize="10"
+              fill="#94a3b8"
+            >
+              {p.date}
+            </text>
+
+            <text
+              x={p.x}
+              y={p.y - 10}
+              textAnchor="middle"
+              fontSize="10"
+              fill="#1e3a8a"
+              fontWeight="700"
+            >
+              {p.w} kg
+            </text>
+          </g>
+        ) : null
+      )}
+    </svg>
+  );
+}
+
+function TrendChart({
+  data,
+  unit = "",
+  formatter = v => `${Math.round(v)}${unit ? " " + unit : ""}`
+}) {
+  const valid = data.filter(d => d.value !== null);
+
+  if (valid.length < 2) {
+    return (
+      <div
+        style={{
+          color: "#94a3b8",
+          textAlign: "center",
+          padding: "24px 0",
+          fontSize: 13
+        }}
+      >
+        Track at least 2 days to see the trend
+      </div>
+    );
+  }
+
+  const vals = valid.map(d => d.value);
+
+  const mn = Math.min(...vals);
+  const mx = Math.max(...vals);
+
+  const H = 110;
+  const W = 600;
+
+  const pts = data.map((d, i) => ({
+    ...d,
+    x: 45 + (i / (data.length - 1)) * (W - 70),
+    y:
+      d.value !== null
+        ? H - ((d.value - mn) / (mx - mn || 1)) * (H - 20)
+        : null
+  }));
+
+  const lp = pts.filter(p => p.y !== null);
+
+  const path = lp
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+    .join(" ");
+
+  const area =
+    path +
+    ` L ${lp[lp.length - 1].x} ${H} L ${lp[0].x} ${H} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H + 24}`}
+      style={{
+        width: "100%",
+        height: "auto",
+        overflow: "visible"
+      }}
+    >
+      <defs>
+        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Y-axis labels + grid */}
+      {[0, 1, 2, 3, 4].map(i => {
+        const value = mx - ((mx - mn) / 4) * i;
+        const y = 10 + (i * (H - 20)) / 4;
+
+        return (
+          <g key={i}>
+            <line
+              x1="40"
+              y1={y}
+              x2={W}
+              y2={y}
+              stroke="#e2e8f0"
+              strokeDasharray="3 3"
+            />
+
+            <text
+              x="2"
+              y={y + 4}
+              fontSize="10"
+              fill="#64748b"
+            >
+              {formatter(value)}
+            </text>
+          </g>
+        );
+      })}
+
+      <path d={area} fill="url(#trendFill)" />
+
+      <path
+        d={path}
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {lp.map((p, i) => (
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r="4"/>
+          <circle
+            cx={p.x}
+            cy={p.y}
+            r="4.5"
+            fill="#3b82f6"
+          />
+
           <text
             x={p.x}
-            y={H+18}
+            y={H + 18}
             textAnchor="middle"
             fontSize="10"
+            fill="#94a3b8"
           >
             {p.date}
+          </text>
+
+          <text
+            x={p.x}
+            y={p.y - 10}
+            textAnchor="middle"
+            fontSize="10"
+            fill="#1e3a8a"
+            fontWeight="700"
+          >
+            {formatter(p.value)}
           </text>
         </g>
       ))}
@@ -426,131 +607,289 @@ function App(){
 
         {view==="dashboard"&&(
           <div>
-            <div style={{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}}>Analytics Dashboard</div>
-            <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20,marginBottom:20}}>
-              <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>⚖️ Weight Trend</div>
-              <div style={{fontSize:12,color:"#94a3b8",marginBottom:14}}>Last 10 days</div>
-              <WeightChart data={allDates.slice(0,10).reverse().map(d=>({date:d.slice(5),w:parseFloat(getW(d))||null}))}/>
-                <div
-                  style={{
-                    background:"#fff",
-                    border:"1.5px solid #e2e8f0",
-                    borderRadius:18,
-                    padding:20,
-                    marginBottom:20
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight:800,
-                      color:"#1e293b",
-                      fontSize:15,
-                      marginBottom:4
-                    }}
-                  >
-                    🚶 Walk Trend
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:12,
-                      color:"#94a3b8",
-                      marginBottom:14
-                    }}
-                  >
-                    Last 10 days
-                  </div>
-
-                  <TrendChart
-                    data={allDates
-                      .slice(0,10)
-                      .reverse()
-                      .map(d=>({
-                        date:d.slice(5),
-                        value:parseFloat(getE(d,"walk"))||null
-                      }))
-                    }
-                    unit="steps"
-                  />
-                </div>
-                <div
-                  style={{
-                    background:"#fff",
-                    border:"1.5px solid #e2e8f0",
-                    borderRadius:18,
-                    padding:20,
-                    marginBottom:20
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight:800,
-                      color:"#1e293b",
-                      fontSize:15,
-                      marginBottom:4
-                    }}
-                  >
-                    🌅 Wake-Up Time Trend
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:12,
-                      color:"#94a3b8",
-                      marginBottom:14
-                    }}
-                  >
-                    Last 10 days
-                  </div>
-
-                  <TrendChart
-                    data={allDates
-                      .slice(0,10)
-                      .reverse()
-                      .map(d=>{
-                        const t=getE(d,"wake_up");
-
-                        if(!t){
-                          return {
-                            date:d.slice(5),
-                            value:null
-                          };
-                        }
-
-                        const [h,m]=t.split(":").map(Number);
-
-                        return {
-                          date:d.slice(5),
-                          value:h+(m/60)
-                        };
-                      })
-                    }
-                    unit="hr"
-                  />
-                </div>
+            <div
+              style={{
+                fontWeight:800,
+                fontSize:18,
+                color:"#1e293b",
+                marginBottom:16
+              }}
+            >
+              Analytics Dashboard
             </div>
-            <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20}}>
-              <div style={{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}}>📌 Activity Completion Rate</div>
-              <div style={{fontSize:12,color:"#94a3b8",marginBottom:20}}>All tracked days · Breakfast, Lunch & Dinner excluded</div>
-              {allDates.length===0?(
-                <div style={{color:"#94a3b8",textAlign:"center",padding:"20px 0",fontSize:13}}>No data yet — start tracking today!</div>
-              ):dashActs.map(act=>{
-                const total=allDates.length;
-                const done=allDates.filter(d=>{const v=entries[d]?.[act.id];return act.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
-                const p=total?Math.round((done/total)*100):0;
-                const bar=p>80?"#22c55e":p>50?"#f97316":"#ef4444";
-                return(
-                  <div key={act.id} style={{marginBottom:14}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,marginBottom:5}}>
-                      <span style={{color:"#334155",fontWeight:600}}>{act.icon} {act.label}</span>
-                      <span style={{color:bar,fontWeight:700,minWidth:70,textAlign:"right"}}>{done}/{total} · {p}%</span>
+
+            {/* Weight Trend */}
+            <div
+              style={{
+                background:"#fff",
+                border:"1.5px solid #e2e8f0",
+                borderRadius:18,
+                padding:20,
+                marginBottom:20
+              }}
+            >
+              <div
+                style={{
+                  fontWeight:800,
+                  color:"#1e293b",
+                  fontSize:15,
+                  marginBottom:4
+                }}
+              >
+                ⚖️ Weight Trend
+              </div>
+
+              <div
+                style={{
+                  fontSize:12,
+                  color:"#94a3b8",
+                  marginBottom:14
+                }}
+              >
+                Last 10 days
+              </div>
+
+              <WeightChart
+                data={allDates
+                  .slice(0,10)
+                  .reverse()
+                  .map(d=>({
+                    date:d.slice(5),
+                    w:parseFloat(getW(d))||null
+                  }))
+                }
+              />
+            </div>
+
+            {/* Walk Trend */}
+            <div
+              style={{
+                background:"#fff",
+                border:"1.5px solid #e2e8f0",
+                borderRadius:18,
+                padding:20,
+                marginBottom:20
+              }}
+            >
+              <div
+                style={{
+                  fontWeight:800,
+                  color:"#1e293b",
+                  fontSize:15,
+                  marginBottom:4
+                }}
+              >
+                🚶 Walk Trend
+              </div>
+
+              <div
+                style={{
+                  fontSize:12,
+                  color:"#94a3b8",
+                  marginBottom:14
+                }}
+              >
+                Last 10 days
+              </div>
+
+              <TrendChart
+                data={allDates
+                  .slice(0,10)
+                  .reverse()
+                  .map(d=>({
+                    date:d.slice(5),
+                    value:parseFloat(getE(d,"walk"))||null
+                  }))
+                }
+                formatter={v =>
+                  `${Math.round(v).toLocaleString()}`
+                }
+              />
+            </div>
+
+            {/* Wake Up Trend */}
+            <div
+              style={{
+                background:"#fff",
+                border:"1.5px solid #e2e8f0",
+                borderRadius:18,
+                padding:20,
+                marginBottom:20
+              }}
+            >
+              <div
+                style={{
+                  fontWeight:800,
+                  color:"#1e293b",
+                  fontSize:15,
+                  marginBottom:4
+                }}
+              >
+                🌅 Wake-Up Time Trend
+              </div>
+
+              <div
+                style={{
+                  fontSize:12,
+                  color:"#94a3b8",
+                  marginBottom:14
+                }}
+              >
+                Last 10 days
+              </div>
+
+              <TrendChart
+                data={allDates
+                  .slice(0,10)
+                  .reverse()
+                  .map(d=>{
+                    const t=getE(d,"wake_up");
+
+                    if(!t){
+                      return {
+                        date:d.slice(5),
+                        value:null
+                      };
+                    }
+
+                    const [h,m]=t.split(":").map(Number);
+
+                    return {
+                      date:d.slice(5),
+                      value:h+(m/60)
+                    };
+                  })
+                }
+                formatter={v=>{
+                  const h=Math.floor(v);
+                  const m=Math.round((v-h)*60);
+
+                  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+                }}
+              />
+            </div>
+
+            {/* Completion Rate */}
+            <div
+              style={{
+                background:"#fff",
+                border:"1.5px solid #e2e8f0",
+                borderRadius:18,
+                padding:20
+              }}
+            >
+              <div
+                style={{
+                  fontWeight:800,
+                  color:"#1e293b",
+                  fontSize:15,
+                  marginBottom:4
+                }}
+              >
+                📌 Activity Completion Rate
+              </div>
+
+              <div
+                style={{
+                  fontSize:12,
+                  color:"#94a3b8",
+                  marginBottom:20
+                }}
+              >
+                All tracked days · Breakfast, Lunch & Dinner excluded
+              </div>
+
+              {allDates.length===0 ? (
+                <div
+                  style={{
+                    color:"#94a3b8",
+                    textAlign:"center",
+                    padding:"20px 0",
+                    fontSize:13
+                  }}
+                >
+                  No data yet — start tracking today!
+                </div>
+              ) : (
+                dashActs.map(act=>{
+                  const total=allDates.length;
+
+                  const done=allDates.filter(d=>{
+                    const v=entries[d]?.[act.id];
+
+                    return act.type==="checkbox"
+                      ? v===true
+                      : v && v.toString().trim()!=="";
+                  }).length;
+
+                  const p=total
+                    ? Math.round((done/total)*100)
+                    : 0;
+
+                  const bar=
+                    p>80
+                      ? "#22c55e"
+                      : p>50
+                      ? "#f97316"
+                      : "#ef4444";
+
+                  return(
+                    <div
+                      key={act.id}
+                      style={{marginBottom:14}}
+                    >
+                      <div
+                        style={{
+                          display:"flex",
+                          justifyContent:"space-between",
+                          alignItems:"center",
+                          fontSize:13,
+                          marginBottom:5
+                        }}
+                      >
+                        <span
+                          style={{
+                            color:"#334155",
+                            fontWeight:600
+                          }}
+                        >
+                          {act.icon} {act.label}
+                        </span>
+
+                        <span
+                          style={{
+                            color:bar,
+                            fontWeight:700,
+                            minWidth:70,
+                            textAlign:"right"
+                          }}
+                        >
+                          {done}/{total} · {p}%
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          background:"#f1f5f9",
+                          borderRadius:6,
+                          height:9,
+                          overflow:"hidden"
+                        }}
+                      >
+                        <div
+                          style={{
+                            width:`${p}%`,
+                            height:"100%",
+                            background:bar,
+                            borderRadius:6,
+                            transition:"width 0.4s"
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div style={{background:"#f1f5f9",borderRadius:6,height:9,overflow:"hidden"}}>
-                      <div style={{width:`${p}%`,height:"100%",background:bar,borderRadius:6,transition:"width 0.4s"}}/>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
