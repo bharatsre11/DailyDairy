@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Wellness Journal</title>
-<!-- React 18 via cdnjs (more stable than unpkg for GitHub Pages) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <style>
@@ -19,380 +18,201 @@ input:focus,select:focus{border-color:#f97316!important}
 <body>
 <div id="root"></div>
 <script>
-const {useState,useEffect,useCallback}=React;
+// ── Shorthand ──
+const e = React.createElement;
+const {useState, useEffect, useCallback, useRef} = React;
 
-const EXCLUDED_DASHBOARD=["play_time"];
+const EXCLUDED_DASHBOARD = ["play_time"];
 
-const DEFAULT_ACTS=[
-  {id:"wake_up",    label:"Wake Up Time",                 type:"time",    icon:"🌅",category:"Morning"},
-  {id:"exercise",   label:"Exercise Done",                type:"checkbox",icon:"💪",category:"Morning"},
-  {id:"morning_drink",  label:"Kadha",                    type:"checkbox",icon:"🍵",category:"Morning"},
-  {id:"dry_fruits", label:"Dry Fruits",                    type:"checkbox",icon:"🥜",category:"Meals"},
-  {id:"fruits",      label:"Fruits",                        type:"checkbox",    icon:"🍱",category:"Meals"},
-  {id:"milk_makhana",label:"Milk & Makhana",              type:"checkbox",icon:"🥛",category:"Meals"},
-  {id:"walk",       label:"Walk Steps",                         type:"number",    icon:"🚶",category:"Fitness"},
-  {id:"play_time",  label:"Play Time",                    type:"number",    icon:"🏃",category:"Fitness"},
-  {id:"multivitamin",label:"Multivitamin",                type:"checkbox",icon:"🧪",category:"Supplements"},
-  {id:"work",     label:"Work",                       type:"checkbox",icon:"🏢",category:"Work & Study"}
+const DEFAULT_ACTS = [
+  {id:"wake_up",      label:"Wake Up Time",                type:"time",    icon:"🌅", category:"Morning",      deletable:true},
+  {id:"exercise",     label:"Exercise Done",               type:"checkbox",icon:"💪", category:"Morning",      deletable:true},
+  {id:"morning_drink",label:"Kadha",                       type:"checkbox",icon:"🍵", category:"Morning",      deletable:true},
+  {id:"dry_fruits",   label:"Dry Fruits",                  type:"checkbox",icon:"🥜", category:"Meals",        deletable:true},
+  {id:"fruits",       label:"Fruits",                      type:"checkbox",icon:"🍱", category:"Meals",        deletable:true},
+  {id:"milk_makhana", label:"Milk & Makhana",              type:"checkbox",icon:"🥛", category:"Meals",        deletable:true},
+  {id:"walk",         label:"Walk Steps",                  type:"number",  icon:"🚶", category:"Fitness",      deletable:true},
+  {id:"play_time",    label:"Play Time",                   type:"number",  icon:"🏃", category:"Fitness",      deletable:true},
+  {id:"multivitamin", label:"Multivitamin",                type:"checkbox",icon:"🧪", category:"Supplements",  deletable:true},
+  {id:"work",         label:"Work",                        type:"checkbox",icon:"🏢", category:"Work & Study", deletable:true},
 ];
 
-const CAT_STYLE={
-  "Morning":     {bg:"#FFF7ED",border:"#FB923C",text:"#9A3412",icon:"🌄"},
-  "Meals":       {bg:"#F0FDF4",border:"#4ADE80",text:"#166534",icon:"🍴"},
-  "Fitness":     {bg:"#EFF6FF",border:"#60A5FA",text:"#1E3A8A",icon:"🏅"},
-  "Supplements": {bg:"#FDF4FF",border:"#C084FC",text:"#6B21A8",icon:"💊"},
-  "Work & Study":{bg:"#FFF1F2",border:"#FB7185",text:"#9F1239",icon:"🎯"},
-  "Extra-Things":{bg:"#ECFDF5",border:"#34D399",text:"#065F46",icon:"🎨"},
-  "Custom":      {bg:"#F8FAFC",border:"#94A3B8",text:"#334155",icon:"✨"},
+const CAT_STYLE = {
+  "Morning":      {bg:"#FFF7ED",border:"#FB923C",text:"#9A3412",icon:"🌄"},
+  "Meals":        {bg:"#F0FDF4",border:"#4ADE80",text:"#166534",icon:"🍴"},
+  "Fitness":      {bg:"#EFF6FF",border:"#60A5FA",text:"#1E3A8A",icon:"🏅"},
+  "Supplements":  {bg:"#FDF4FF",border:"#C084FC",text:"#6B21A8",icon:"💊"},
+  "Work & Study": {bg:"#FFF1F2",border:"#FB7185",text:"#9F1239",icon:"🎯"},
+  "Extra-Things": {bg:"#ECFDF5",border:"#34D399",text:"#065F46",icon:"🎨"},
+  "Custom":       {bg:"#F8FAFC",border:"#94A3B8",text:"#334155",icon:"✨"},
 };
 
-// ── Timezone-safe date helpers ────────────────────────────────
-function todayKey(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+// ── Date helpers (timezone-safe) ──
+function todayKey() {
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-function addDays(dateKey,n){
-  const [y,m,d]=dateKey.split("-").map(Number);
-  const dt=new Date(y,m-1,d);   // local midnight — no timezone shift
-  dt.setDate(dt.getDate()+n);
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+function addDays(k, n) {
+  const [y,m,d] = k.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + n);
+  return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
 }
-function fmtDate(dateKey){
-  const [y,m,d]=dateKey.split("-").map(Number);
+function fmtDate(k) {
+  const [y,m,d] = k.split("-").map(Number);
   return new Date(y,m-1,d).toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
 }
-// ─────────────────────────────────────────────────────────────
 
-function stGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}}
-function stSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
+// ── Storage ──
+function stGet(k) { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch{return null;} }
+function stSet(k,v) { try { localStorage.setItem(k,JSON.stringify(v)); } catch(err){console.error(err);} }
 
-function ActRow({act,value,onChange}){
-  return(
-    <div style={{display:"flex",alignItems:"center",padding:"9px 6px",borderBottom:"1px solid rgba(0,0,0,0.05)",gap:10}}>
-      <span style={{fontSize:18,minWidth:28,textAlign:"center"}}>{act.icon}</span>
-      <span style={{flex:1,fontSize:14,fontWeight:600,color:"#1e293b"}}>{act.label}</span>
-      {act.type==="checkbox"&&(
-        <div onClick={()=>onChange(!value)} style={{width:28,height:28,borderRadius:8,border:`2.5px solid ${value?"#22c55e":"#cbd5e1"}`,background:value?"#22c55e":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",flexShrink:0}}>
-          {value&&<span style={{color:"#fff",fontSize:15,fontWeight:900,lineHeight:1}}>✓</span>}
-        </div>
-      )}
-      {act.type==="text"&&<input value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Add note..." style={{width:130,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
-      {act.type==="number"&&<input type="number" value={value||""} onChange={e=>onChange(e.target.value)} placeholder="0" style={{width:80,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
-      {act.type==="time"&&<input type="time" value={value||""} onChange={e=>onChange(e.target.value)} style={{width:105,padding:"7px 10px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b",background:"rgba(255,255,255,0.9)"}}/>}
-    </div>
+// ── Confirm Delete Modal ──
+function DeleteModal({actLabel, onConfirm, onCancel}) {
+  return e("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}},
+    e("div",{style:{background:"#fff",borderRadius:20,padding:28,maxWidth:340,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.25)"}},
+      e("div",{style:{fontSize:36,textAlign:"center",marginBottom:12}},"🗑️"),
+      e("div",{style:{fontWeight:800,fontSize:17,color:"#1e293b",textAlign:"center",marginBottom:8}},"Delete Activity?"),
+      e("div",{style:{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:24}},
+        '"'+actLabel+'" will be removed. Past data is kept.'
+      ),
+      e("div",{style:{display:"flex",gap:10}},
+        e("button",{onClick:onCancel,style:{flex:1,padding:"12px",background:"#f1f5f9",border:"none",borderRadius:12,fontWeight:700,fontSize:14,cursor:"pointer",color:"#64748b"}},"Cancel"),
+        e("button",{onClick:onConfirm,style:{flex:1,padding:"12px",background:"#ef4444",border:"none",borderRadius:12,fontWeight:700,fontSize:14,cursor:"pointer",color:"#fff"}},"Delete")
+      )
+    )
   );
 }
 
-function DateBar({dateKey,onChange}){
-  const isToday=dateKey===todayKey();
-  return(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,background:"#fff",borderRadius:14,padding:"10px 16px",border:"1.5px solid #e2e8f0"}}>
-      <button onClick={()=>onChange(addDays(dateKey,-1))} style={{background:"#f1f5f9",border:"none",cursor:"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>‹</button>
-      <div style={{textAlign:"center"}}>
-        <div style={{fontWeight:800,fontSize:14,color:"#1e293b"}}>{fmtDate(dateKey)}</div>
-        {isToday&&<span style={{fontSize:11,color:"#f97316",fontWeight:800,letterSpacing:1}}>TODAY</span>}
-      </div>
-      <button onClick={()=>{if(!isToday)onChange(addDays(dateKey,1));}}
-        style={{background:"#f1f5f9",border:"none",cursor:isToday?"not-allowed":"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:isToday?"#e2e8f0":"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>›</button>
-    </div>
+// ── Activity Row ──
+function ActRow({act, value, onChange, editMode, onDeleteRequest}) {
+  const holdTimer = useRef(null);
+  const startHold = () => { holdTimer.current = setTimeout(()=>onDeleteRequest(act), 600); };
+  const cancelHold = () => clearTimeout(holdTimer.current);
+
+  const inputStyle = {borderRadius:8, border:"1.5px solid #e2e8f0", fontSize:13, color:"#1e293b", background:"rgba(255,255,255,0.9)", padding:"7px 10px"};
+
+  return e("div",{style:{display:"flex",alignItems:"center",padding:"9px 6px",borderBottom:"1px solid rgba(0,0,0,0.05)",gap:10}},
+    editMode && e("div",{
+      onClick: ()=>onDeleteRequest(act),
+      style:{width:22,height:22,borderRadius:6,background:"#fee2e2",border:"1.5px solid #fca5a5",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}
+    }, e("span",{style:{color:"#ef4444",fontSize:13,fontWeight:900,lineHeight:1}},"✕")),
+    e("span",{
+      style:{fontSize:18,minWidth:28,textAlign:"center",userSelect:"none"},
+      onMouseDown:startHold, onMouseUp:cancelHold, onMouseLeave:cancelHold,
+      onTouchStart:startHold, onTouchEnd:cancelHold
+    }, act.icon),
+    e("span",{style:{flex:1,fontSize:14,fontWeight:600,color:"#1e293b"}}, act.label),
+    !editMode && act.type==="checkbox" && e("div",{
+      onClick:()=>onChange(!value),
+      style:{width:28,height:28,borderRadius:8,border:"2.5px solid "+(value?"#22c55e":"#cbd5e1"),background:value?"#22c55e":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",flexShrink:0}
+    }, value && e("span",{style:{color:"#fff",fontSize:15,fontWeight:900,lineHeight:1}},"✓")),
+    !editMode && act.type==="text"   && e("input",{value:value||"",onChange:ev=>onChange(ev.target.value),placeholder:"Add note...",style:{...inputStyle,width:130}}),
+    !editMode && act.type==="number" && e("input",{type:"number",value:value||"",onChange:ev=>onChange(ev.target.value),placeholder:"0",style:{...inputStyle,width:80}}),
+    !editMode && act.type==="time"   && e("input",{type:"time",value:value||"",onChange:ev=>onChange(ev.target.value),style:{...inputStyle,width:105}}),
+    editMode && e("span",{style:{fontSize:12,color:"#94a3b8",fontStyle:"italic"}}, act.type)
   );
 }
 
-function WeightChart({ data }) {
-  const valid = data.filter(d => d.w !== null);
-
-  if (valid.length < 2) {
-    return (
-      <div
-        style={{
-          color: "#94a3b8",
-          textAlign: "center",
-          padding: "24px 0",
-          fontSize: 13
-        }}
-      >
-        Track weight on at least 2 days to see the trend
-      </div>
-    );
-  }
-
-  const vals = valid.map(d => d.w);
-
-  const mn = Math.min(...vals) - 0.5;
-  const mx = Math.max(...vals) + 0.5;
-
-  const H = 110;
-  const W = 600;
-
-  const pts = data.map((d, i) => ({
-    ...d,
-    x: 45 + (i / (data.length - 1)) * (W - 70),
-    y:
-      d.w !== null
-        ? H - ((d.w - mn) / (mx - mn || 1)) * (H - 20)
-        : null
-  }));
-
-  const lp = pts.filter(p => p.y !== null);
-
-  const path = lp
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
-
-  const area =
-    path +
-    ` L ${lp[lp.length - 1].x} ${H} L ${lp[0].x} ${H} Z`;
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H + 24}`}
-      style={{
-        width: "100%",
-        height: "auto",
-        overflow: "visible"
-      }}
-    >
-      <defs>
-        <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* Y Axis Scale + Grid */}
-      {[0, 1, 2, 3, 4].map(i => {
-        const value = (mx - ((mx - mn) / 4) * i).toFixed(1);
-        const y = 10 + (i * (H - 20)) / 4;
-
-        return (
-          <g key={i}>
-            <line
-              x1="40"
-              y1={y}
-              x2={W}
-              y2={y}
-              stroke="#e2e8f0"
-              strokeDasharray="3 3"
-            />
-
-            <text
-              x="2"
-              y={y + 4}
-              fontSize="10"
-              fill="#64748b"
-            >
-              {value} kg
-            </text>
-          </g>
-        );
-      })}
-
-      <path d={area} fill="url(#wg)" />
-
-      <path
-        d={path}
-        fill="none"
-        stroke="#3b82f6"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {pts.map((p, i) =>
-        p.y !== null ? (
-          <g key={i}>
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="4.5"
-              fill="#3b82f6"
-            />
-
-            <text
-              x={p.x}
-              y={H + 18}
-              textAnchor="middle"
-              fontSize="10"
-              fill="#94a3b8"
-            >
-              {p.date}
-            </text>
-
-            <text
-              x={p.x}
-              y={p.y - 10}
-              textAnchor="middle"
-              fontSize="10"
-              fill="#1e3a8a"
-              fontWeight="700"
-            >
-              {p.w} kg
-            </text>
-          </g>
-        ) : null
-      )}
-    </svg>
+// ── Date Bar ──
+function DateBar({dateKey, onChange}) {
+  const isToday = dateKey === todayKey();
+  const btnStyle = (disabled) => ({background:"#f1f5f9",border:"none",cursor:disabled?"not-allowed":"pointer",width:36,height:36,borderRadius:10,fontSize:20,color:disabled?"#e2e8f0":"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700});
+  return e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,background:"#fff",borderRadius:14,padding:"10px 16px",border:"1.5px solid #e2e8f0"}},
+    e("button",{onClick:()=>onChange(addDays(dateKey,-1)),style:btnStyle(false)},"‹"),
+    e("div",{style:{textAlign:"center"}},
+      e("div",{style:{fontWeight:800,fontSize:14,color:"#1e293b"}}, fmtDate(dateKey)),
+      isToday && e("span",{style:{fontSize:11,color:"#f97316",fontWeight:800,letterSpacing:1}},"TODAY")
+    ),
+    e("button",{onClick:()=>{if(!isToday)onChange(addDays(dateKey,1));},style:btnStyle(isToday)},"›")
   );
 }
 
-function TrendChart({
-  data,
-  unit = "",
-  formatter = v => `${Math.round(v)}${unit ? " " + unit : ""}`
-}) {
-  const valid = data.filter(d => d.value !== null);
-
-  if (valid.length < 2) {
-    return (
-      <div
-        style={{
-          color: "#94a3b8",
-          textAlign: "center",
-          padding: "24px 0",
-          fontSize: 13
-        }}
-      >
-        Track at least 2 days to see the trend
-      </div>
-    );
-  }
-
-  const vals = valid.map(d => d.value);
-
-  const mn = Math.min(...vals);
-  const mx = Math.max(...vals);
-
-  const H = 110;
-  const W = 600;
-
-  const pts = data.map((d, i) => ({
-    ...d,
-    x: 45 + (i / (data.length - 1)) * (W - 70),
-    y:
-      d.value !== null
-        ? H - ((d.value - mn) / (mx - mn || 1)) * (H - 20)
-        : null
-  }));
-
-  const lp = pts.filter(p => p.y !== null);
-
-  const path = lp
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
-
-  const area =
-    path +
-    ` L ${lp[lp.length - 1].x} ${H} L ${lp[0].x} ${H} Z`;
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H + 24}`}
-      style={{
-        width: "100%",
-        height: "auto",
-        overflow: "visible"
-      }}
-    >
-      <defs>
-        <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* Y-axis labels + grid */}
-      {[0, 1, 2, 3, 4].map(i => {
-        const value = mx - ((mx - mn) / 4) * i;
-        const y = 10 + (i * (H - 20)) / 4;
-
-        return (
-          <g key={i}>
-            <line
-              x1="40"
-              y1={y}
-              x2={W}
-              y2={y}
-              stroke="#e2e8f0"
-              strokeDasharray="3 3"
-            />
-
-            <text
-              x="2"
-              y={y + 4}
-              fontSize="10"
-              fill="#64748b"
-            >
-              {formatter(value)}
-            </text>
-          </g>
-        );
-      })}
-
-      <path d={area} fill="url(#trendFill)" />
-
-      <path
-        d={path}
-        fill="none"
-        stroke="#3b82f6"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {lp.map((p, i) => (
-        <g key={i}>
-          <circle
-            cx={p.x}
-            cy={p.y}
-            r="4.5"
-            fill="#3b82f6"
-          />
-
-          <text
-            x={p.x}
-            y={H + 18}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#94a3b8"
-          >
-            {p.date}
-          </text>
-
-          <text
-            x={p.x}
-            y={p.y - 10}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#1e3a8a"
-            fontWeight="700"
-          >
-            {formatter(p.value)}
-          </text>
-        </g>
-      ))}
-    </svg>
+// ── Weight Chart (SVG) ──
+function WeightChart({data}) {
+  const valid = data.filter(d=>d.w!==null);
+  if (valid.length < 2) return e("div",{style:{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}},"Track weight on at least 2 days to see the trend");
+  const vals = valid.map(d=>d.w);
+  const mn = Math.min(...vals)-0.5, mx = Math.max(...vals)+0.5;
+  const H=110, W=600;
+  const pts = data.map((d,i)=>({...d, x:45+(i/(data.length-1))*(W-70), y:d.w!==null?H-((d.w-mn)/(mx-mn||1))*(H-20):null}));
+  const lp = pts.filter(p=>p.y!==null);
+  const path = lp.map((p,i)=>(i===0?"M":"L")+" "+p.x+" "+p.y).join(" ");
+  const area = path+" L "+lp[lp.length-1].x+" "+H+" L "+lp[0].x+" "+H+" Z";
+  return e("svg",{viewBox:"0 0 "+W+" "+(H+24),style:{width:"100%",height:"auto",overflow:"visible"}},
+    e("defs",null,e("linearGradient",{id:"wg",x1:"0",y1:"0",x2:"0",y2:"1"},
+      e("stop",{offset:"0%",stopColor:"#3b82f6",stopOpacity:"0.25"}),
+      e("stop",{offset:"100%",stopColor:"#3b82f6",stopOpacity:"0"})
+    )),
+    [0,1,2,3,4].map(i=>{
+      const v=(mx-((mx-mn)/4)*i).toFixed(1), y=10+(i*(H-20))/4;
+      return e("g",{key:i},e("line",{x1:"40",y1:y,x2:W,y2:y,stroke:"#e2e8f0",strokeDasharray:"3 3"}),e("text",{x:"2",y:y+4,fontSize:"10",fill:"#64748b"},v+"kg"));
+    }),
+    e("path",{d:area,fill:"url(#wg)"}),
+    e("path",{d:path,fill:"none",stroke:"#3b82f6",strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round"}),
+    pts.map((p,i)=>p.y!==null?e("g",{key:i},
+      e("circle",{cx:p.x,cy:p.y,r:"4.5",fill:"#3b82f6"}),
+      e("text",{x:p.x,y:H+18,textAnchor:"middle",fontSize:"10",fill:"#94a3b8"},p.date),
+      e("text",{x:p.x,y:p.y-10,textAnchor:"middle",fontSize:"10",fill:"#1e3a8a",fontWeight:"700"},p.w+"kg")
+    ):null)
   );
 }
 
-function App(){
-  const [view,setView]=useState("today");
-  const [selDate,setSelDate]=useState(todayKey());
-  const [entries,setEntries]=useState({});
-  const [weight,setWeight]=useState({});
-  const [calories,setCalories]=useState({});
-  const [customActs,setCustomActs]=useState([]);
-  const [showAdd,setShowAdd]=useState(false);
-  const [newAct,setNewAct]=useState({label:"",type:"checkbox",icon:"✨",category:"Custom"});
-  const [streak,setStreak]=useState(0);
-  const [toast,setToast]=useState(null);
+// ── Generic Trend Chart ──
+function TrendChart({data, color="#3b82f6", gradId="tg", formatter}) {
+  const valid = data.filter(d=>d.value!==null&&d.value!==undefined);
+  if (valid.length < 2) return e("div",{style:{color:"#94a3b8",textAlign:"center",padding:"24px 0",fontSize:13}},"Track at least 2 days to see the trend");
+  const vals = valid.map(d=>d.value);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  const H=110, W=600;
+  const pts = data.map((d,i)=>({...d, x:45+(i/(data.length-1))*(W-70), y:d.value!==null?H-((d.value-mn)/(mx-mn||1))*(H-20):null}));
+  const lp = pts.filter(p=>p.y!==null);
+  const path = lp.map((p,i)=>(i===0?"M":"L")+" "+p.x+" "+p.y).join(" ");
+  const area = path+" L "+lp[lp.length-1].x+" "+H+" L "+lp[0].x+" "+H+" Z";
+  const fmt = formatter || (v=>Math.round(v).toLocaleString());
+  return e("svg",{viewBox:"0 0 "+W+" "+(H+24),style:{width:"100%",height:"auto",overflow:"visible"}},
+    e("defs",null,e("linearGradient",{id:gradId,x1:"0",y1:"0",x2:"0",y2:"1"},
+      e("stop",{offset:"0%",stopColor:color,stopOpacity:"0.25"}),
+      e("stop",{offset:"100%",stopColor:color,stopOpacity:"0"})
+    )),
+    [0,1,2,3,4].map(i=>{
+      const v=mx-((mx-mn)/4)*i, y=10+(i*(H-20))/4;
+      return e("g",{key:i},e("line",{x1:"40",y1:y,x2:W,y2:y,stroke:"#e2e8f0",strokeDasharray:"3 3"}),e("text",{x:"2",y:y+4,fontSize:"10",fill:"#64748b"},fmt(v)));
+    }),
+    e("path",{d:area,fill:"url(#"+gradId+")"}),
+    e("path",{d:path,fill:"none",stroke:color,strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round"}),
+    lp.map((p,i)=>e("g",{key:i},
+      e("circle",{cx:p.x,cy:p.y,r:"4.5",fill:color}),
+      e("text",{x:p.x,y:H+18,textAnchor:"middle",fontSize:"10",fill:"#94a3b8"},p.date),
+      e("text",{x:p.x,y:p.y-10,textAnchor:"middle",fontSize:"10",fill:color,fontWeight:"700"},fmt(p.value))
+    ))
+  );
+}
+
+// ── Main App ──
+function App() {
+  const [view,       setView]       = useState("today");
+  const [selDate,    setSelDate]    = useState(todayKey());
+  const [entries,    setEntries]    = useState({});
+  const [weight,     setWeight]     = useState({});
+  const [calories,   setCalories]   = useState({});
+  const [customActs, setCustomActs] = useState([]);
+  const [deletedIds, setDeletedIds] = useState([]);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [editMode,   setEditMode]   = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [newAct,     setNewAct]     = useState({label:"",type:"checkbox",icon:"✨",category:"Custom"});
+  const [streak,     setStreak]     = useState(0);
+  const [toast,      setToast]      = useState(null);
 
   useEffect(()=>{
-    const ent=stGet("diary_entries")||{};
-    const wt=stGet("diary_weight")||{};
-    const cal=stGet("diary_calories")||{};
-    const cust=stGet("diary_custom_activities")||[];
-    setEntries(ent);setWeight(wt);setCalories(cal);setCustomActs(cust);
-    let s=0,dk=todayKey();
+    const ent  = stGet("diary_entries")           || {};
+    const wt   = stGet("diary_weight")            || {};
+    const cal  = stGet("diary_calories")          || {};
+    const cust = stGet("diary_custom_activities") || [];
+    const del  = stGet("diary_deleted_ids")       || [];
+    setEntries(ent); setWeight(wt); setCalories(cal); setCustomActs(cust); setDeletedIds(del);
+    let s=0, dk=todayKey();
     for(let i=0;i<365;i++){
       if(ent[dk]&&Object.keys(ent[dk]).length>0){s++;dk=addDays(dk,-1);}
       else break;
@@ -400,506 +220,261 @@ function App(){
     setStreak(s);
   },[]);
 
-  const flash=msg=>{setToast(msg);setTimeout(()=>setToast(null),2200)};
+  const flash = msg => { setToast(msg); setTimeout(()=>setToast(null),2200); };
 
-  const allActs=[...DEFAULT_ACTS,...customActs];
-  const dashActs=allActs.filter(a=>!EXCLUDED_DASHBOARD.includes(a.id));
+  const allActs  = [...DEFAULT_ACTS.filter(a=>!deletedIds.includes(a.id)), ...customActs];
+  const dashActs = allActs.filter(a=>!EXCLUDED_DASHBOARD.includes(a.id));
 
-  const getE=(dk,id)=>entries[dk]?.[id]??"";
-  const getW=dk=>weight[dk]??"";
-  const getC=dk=>calories[dk]??"";
+  const getE = (dk,id) => entries[dk]?.[id] ?? "";
+  const getW = dk => weight[dk]   ?? "";
+  const getC = dk => calories[dk] ?? "";
 
-  const setE=useCallback((dk,id,val)=>{
-    setEntries(prev=>{const u={...prev,[dk]:{...prev[dk],[id]:val}};stSet("diary_entries",u);return u;});
+  const setE = useCallback((dk,id,val)=>{
+    setEntries(prev=>{ const u={...prev,[dk]:{...prev[dk],[id]:val}}; stSet("diary_entries",u); return u; });
   },[]);
-  const setWt=useCallback((dk,val)=>{
-    setWeight(prev=>{const u={...prev,[dk]:val};stSet("diary_weight",u);return u;});
-  },[]);
-  const setCal=useCallback((dk,val)=>{
-    setCalories(prev=>{const u={...prev,[dk]:val};stSet("diary_calories",u);return u;});
-  },[]);
+  const setWt  = useCallback((dk,val)=>{ setWeight(prev=>{   const u={...prev,[dk]:val}; stSet("diary_weight",u);   return u; }); },[]);
+  const setCal = useCallback((dk,val)=>{ setCalories(prev=>{ const u={...prev,[dk]:val}; stSet("diary_calories",u); return u; }); },[]);
 
-  const wlKg=dk=>{
-    const w=parseFloat(getW(dk)),c=parseFloat(getC(dk));
-    if(!w||!c)return null;
-    return((w*32-c)/7700).toFixed(3);
+  const wlKg = dk => {
+    const w=parseFloat(getW(dk)), c=parseFloat(getC(dk));
+    if(!w||!c) return null;
+    return ((w*32-c)/7700).toFixed(3);
   };
 
-  const doneCount=dk=>{
-    const e=entries[dk]||{};
-    return allActs.filter(a=>{const v=e[a.id];return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
+  const doneCount = dk => {
+    const en = entries[dk]||{};
+    return allActs.filter(a=>{ const v=en[a.id]; return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""; }).length;
   };
-  const pct=dk=>allActs.length?Math.round((doneCount(dk)/allActs.length)*100):0;
+  const pct = dk => allActs.length ? Math.round((doneCount(dk)/allActs.length)*100) : 0;
 
-  const allDates=[...new Set([...Object.keys(entries),...Object.keys(weight),...Object.keys(calories)])].sort().reverse();
-  const grouped=allActs.reduce((acc,a)=>{const c=a.category||"Custom";if(!acc[c])acc[c]=[];acc[c].push(a);return acc;},{});
+  const allDates = [...new Set([...Object.keys(entries),...Object.keys(weight),...Object.keys(calories)])].sort().reverse();
+  const grouped  = allActs.reduce((acc,a)=>{ const c=a.category||"Custom"; if(!acc[c])acc[c]=[]; acc[c].push(a); return acc; },{});
 
-  const addAct=()=>{
-    if(!newAct.label.trim())return;
-    const act={...newAct,id:"custom_"+Date.now(),label:newAct.label.trim()};
-    const updated=[...customActs,act];
-    setCustomActs(updated);stSet("diary_custom_activities",updated);
+  const handleDeleteRequest = act => setConfirmDel(act);
+  const handleDeleteConfirm = () => {
+    const act = confirmDel; setConfirmDel(null);
+    if (DEFAULT_ACTS.some(a=>a.id===act.id)) {
+      const upd=[...deletedIds,act.id]; setDeletedIds(upd); stSet("diary_deleted_ids",upd);
+    } else {
+      const upd=customActs.filter(a=>a.id!==act.id); setCustomActs(upd); stSet("diary_custom_activities",upd);
+    }
+    flash('🗑️ "'+act.label+'" removed');
+  };
+
+  const addAct = () => {
+    if(!newAct.label.trim()) return;
+    const act={...newAct,id:"custom_"+Date.now(),label:newAct.label.trim(),deletable:true};
+    const upd=[...customActs,act]; setCustomActs(upd); stSet("diary_custom_activities",upd);
     setNewAct({label:"",type:"checkbox",icon:"✨",category:"Custom"});
-    setShowAdd(false);flash("✅ Activity added!");
+    setShowAdd(false); flash("✅ Activity added!");
   };
 
   const NAV=[["today","📝","Today"],["history","📅","History"],["dashboard","📊","Stats"]];
 
-  return(
-    <div style={{fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f1f5f9",minHeight:"100vh"}}>
-      {toast&&<div style={{position:"fixed",top:20,right:20,background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:12,fontWeight:600,fontSize:14,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)"}}>{toast}</div>}
+  const card = (children, extraStyle={}) => e("div",{style:{background:"#fff",borderRadius:18,padding:"18px 20px",marginBottom:16,border:"1.5px solid #e2e8f0",...extraStyle}},children);
 
-      <div style={{background:"linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",color:"#fff",padding:"24px 20px 0",marginBottom:16}}>
-        <div style={{maxWidth:700,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
-            <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#475569",marginBottom:4}}>Daily Digital Diary</div>
-              <div style={{fontSize:24,fontWeight:800,letterSpacing:-0.5}}>My Wellness Journal 📖</div>
-              <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{fmtDate(todayKey())}</div>
-            </div>
-            <div style={{textAlign:"center",flexShrink:0}}>
-              <div style={{background:"rgba(251,146,60,0.15)",border:"1.5px solid rgba(251,146,60,0.4)",borderRadius:14,padding:"10px 14px"}}>
-                <div style={{fontSize:26,fontWeight:900,color:"#fb923c"}}>🔥 {streak}</div>
-                <div style={{fontSize:9,color:"#64748b",fontWeight:700,letterSpacing:1.5}}>DAY STREAK</div>
-              </div>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:4}}>
-            {NAV.map(([v,ico,lbl])=>(
-              <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"10px 0",borderRadius:"12px 12px 0 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:view===v?"#fff":"rgba(255,255,255,0.06)",color:view===v?"#1e293b":"#64748b",transition:"all 0.2s"}}>{ico} {lbl}</button>
-            ))}
-          </div>
-        </div>
-      </div>
+  return e("div",{style:{fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f1f5f9",minHeight:"100vh"}},
+    toast && e("div",{style:{position:"fixed",top:20,right:20,background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:12,fontWeight:600,fontSize:14,zIndex:9998,boxShadow:"0 4px 20px rgba(0,0,0,0.2)"}},toast),
+    confirmDel && e(DeleteModal,{actLabel:confirmDel.label, onConfirm:handleDeleteConfirm, onCancel:()=>setConfirmDel(null)}),
 
-      <div style={{maxWidth:700,margin:"0 auto",padding:"0 16px 80px"}}>
+    // ── Header ──
+    e("div",{style:{background:"linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",color:"#fff",padding:"24px 20px 0",marginBottom:16}},
+      e("div",{style:{maxWidth:700,margin:"0 auto"}},
+        e("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}},
+          e("div",null,
+            e("div",{style:{fontSize:10,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"#475569",marginBottom:4}},"Daily Digital Diary"),
+            e("div",{style:{fontSize:24,fontWeight:800,letterSpacing:-0.5}},"My Wellness Journal 📖"),
+            e("div",{style:{fontSize:12,color:"#64748b",marginTop:3}},fmtDate(todayKey()))
+          ),
+          e("div",{style:{textAlign:"center",flexShrink:0}},
+            e("div",{style:{background:"rgba(251,146,60,0.15)",border:"1.5px solid rgba(251,146,60,0.4)",borderRadius:14,padding:"10px 14px"}},
+              e("div",{style:{fontSize:26,fontWeight:900,color:"#fb923c"}},"🔥 "+streak),
+              e("div",{style:{fontSize:9,color:"#64748b",fontWeight:700,letterSpacing:1.5}},"DAY STREAK")
+            )
+          )
+        ),
+        e("div",{style:{display:"flex",gap:4}},
+          NAV.map(([v,ico,lbl])=>e("button",{key:v,onClick:()=>{setView(v);setEditMode(false);},style:{flex:1,padding:"10px 0",borderRadius:"12px 12px 0 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:view===v?"#fff":"rgba(255,255,255,0.06)",color:view===v?"#1e293b":"#64748b",transition:"all 0.2s"}},ico+" "+lbl))
+        )
+      )
+    ),
 
-        {view==="today"&&(
-          <div>
-            <DateBar dateKey={selDate} onChange={setSelDate}/>
-            <div style={{background:"#fff",borderRadius:18,padding:"18px 20px",marginBottom:16,border:"1.5px solid #e2e8f0"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <span style={{fontWeight:700,fontSize:14,color:"#334155"}}>Daily Progress</span>
-                <span style={{fontWeight:900,fontSize:24,color:pct(selDate)===100?"#22c55e":"#f97316"}}>{pct(selDate)}%</span>
-              </div>
-              <div style={{background:"#f1f5f9",borderRadius:10,height:12,overflow:"hidden"}}>
-                <div style={{width:`${pct(selDate)}%`,height:"100%",background:pct(selDate)===100?"linear-gradient(90deg,#22c55e,#16a34a)":"linear-gradient(90deg,#f97316,#fb923c)",borderRadius:10,transition:"width 0.5s ease"}}/>
-              </div>
-              <div style={{fontSize:12,color:"#94a3b8",marginTop:6,fontWeight:500}}>{doneCount(selDate)} of {allActs.length} activities completed</div>
-            </div>
+    // ── Content ──
+    e("div",{style:{maxWidth:700,margin:"0 auto",padding:"0 16px 80px"}},
 
-            <div style={{background:"linear-gradient(135deg,#1e293b,#0f172a)",borderRadius:20,padding:20,marginBottom:16,color:"#fff"}}>
-              <div style={{fontWeight:700,marginBottom:14,fontSize:13,color:"#64748b",letterSpacing:1.5,textTransform:"uppercase"}}>⚖️ Health Metrics</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-                <div>
-                  <div style={{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}}>WEIGHT (kg)</div>
-                  <input type="number" step="0.1" placeholder="e.g. 72.5" value={getW(selDate)} onChange={e=>setWt(selDate,e.target.value)}
-                    style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}}/>
-                </div>
-                <div>
-                  <div style={{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}}>CALORIES EATEN</div>
-                  <input type="number" placeholder="e.g. 1800" value={getC(selDate)} onChange={e=>setCal(selDate,e.target.value)}
-                    style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}}/>
-                </div>
-              </div>
-              {wlKg(selDate)!==null&&(()=>{
-                const val=parseFloat(wlKg(selDate));
-                const isLoss=val>0;
-                return(
-                  <div style={{background:isLoss?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.12)",border:`1.5px solid ${isLoss?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.3)"}`,borderRadius:14,padding:"14px 18px"}}>
-                    <div style={{fontSize:10,fontWeight:700,color:"#475569",letterSpacing:1.5,marginBottom:6}}>PROJECTED WEIGHT CHANGE TODAY</div>
-                    <div style={{fontSize:26,fontWeight:900,color:isLoss?"#4ade80":"#f87171"}}>
-                      {isLoss?"▼":"▲"} {Math.abs(val).toFixed(3)} kg {isLoss?"loss":"gain"}
-                    </div>
-                    <div style={{fontSize:11,color:"#475569",marginTop:4}}>Formula: (weight × 32 − calories) ÷ 7700</div>
-                  </div>
+      // ── TODAY ──
+      view==="today" && e("div",null,
+        e(DateBar,{dateKey:selDate,onChange:setSelDate}),
+
+        // Progress bar
+        card(e("div",null,
+          e("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
+            e("span",{style:{fontWeight:700,fontSize:14,color:"#334155"}},"Daily Progress"),
+            e("div",{style:{display:"flex",alignItems:"center",gap:10}},
+              e("button",{onClick:()=>setEditMode(m=>!m),style:{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(editMode?"#ef4444":"#e2e8f0"),background:editMode?"#fee2e2":"#f8fafc",color:editMode?"#ef4444":"#64748b",fontSize:12,fontWeight:700,cursor:"pointer"}},editMode?"✕ Done":"✏️ Edit"),
+              e("span",{style:{fontWeight:900,fontSize:24,color:pct(selDate)===100?"#22c55e":"#f97316"}},pct(selDate)+"%")
+            )
+          ),
+          e("div",{style:{background:"#f1f5f9",borderRadius:10,height:12,overflow:"hidden"}},
+            e("div",{style:{width:pct(selDate)+"%",height:"100%",background:pct(selDate)===100?"linear-gradient(90deg,#22c55e,#16a34a)":"linear-gradient(90deg,#f97316,#fb923c)",borderRadius:10,transition:"width 0.5s ease"}})
+          ),
+          e("div",{style:{fontSize:12,color:editMode?"#ef4444":"#94a3b8",marginTop:6,fontWeight:500}},
+            editMode?"✕ Tap the red X next to any activity to delete it":doneCount(selDate)+" of "+allActs.length+" activities completed"
+          )
+        )),
+
+        // Health Metrics
+        e("div",{style:{background:"linear-gradient(135deg,#1e293b,#0f172a)",borderRadius:20,padding:20,marginBottom:16,color:"#fff"}},
+          e("div",{style:{fontWeight:700,marginBottom:14,fontSize:13,color:"#64748b",letterSpacing:1.5,textTransform:"uppercase"}},"⚖️ Health Metrics"),
+          e("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}},
+            e("div",null,
+              e("div",{style:{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}},"WEIGHT (kg)"),
+              e("input",{type:"number",step:"0.1",placeholder:"e.g. 72.5",value:getW(selDate),onChange:ev=>setWt(selDate,ev.target.value),style:{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}})
+            ),
+            e("div",null,
+              e("div",{style:{fontSize:11,color:"#475569",marginBottom:6,fontWeight:700,letterSpacing:1}},"CALORIES EATEN"),
+              e("input",{type:"number",placeholder:"e.g. 1800",value:getC(selDate),onChange:ev=>setCal(selDate,ev.target.value),style:{width:"100%",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"11px 14px",color:"#fff",fontSize:16,fontWeight:700}})
+            )
+          ),
+          (()=>{
+            const val=parseFloat(wlKg(selDate));
+            if(isNaN(val)) return null;
+            const isLoss=val>0;
+            return e("div",{style:{background:isLoss?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.12)",border:"1.5px solid "+(isLoss?"rgba(34,197,94,0.3)":"rgba(239,68,68,0.3)"),borderRadius:14,padding:"14px 18px"}},
+              e("div",{style:{fontSize:10,fontWeight:700,color:"#475569",letterSpacing:1.5,marginBottom:6}},"PROJECTED WEIGHT CHANGE TODAY"),
+              e("div",{style:{fontSize:26,fontWeight:900,color:isLoss?"#4ade80":"#f87171"}},(isLoss?"▼":"▲")+" "+Math.abs(val).toFixed(3)+" kg "+(isLoss?"loss":"gain")),
+              e("div",{style:{fontSize:11,color:"#475569",marginTop:4}},"Formula: (weight × 32 − calories) ÷ 7700")
+            );
+          })()
+        ),
+
+        // Category sections
+        Object.entries(grouped).map(([cat,acts])=>{
+          const col = CAT_STYLE[cat]||CAT_STYLE.Custom;
+          const done = acts.filter(a=>{ const v=entries[selDate]?.[a.id]; return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""; }).length;
+          return e("div",{key:cat,style:{background:col.bg,border:"1.5px solid "+(editMode?"#ef4444":col.border),borderRadius:18,marginBottom:14,overflow:"hidden",transition:"border-color 0.2s"}},
+            e("div",{style:{padding:"12px 18px 10px",borderBottom:"1px solid "+col.border+"40",display:"flex",alignItems:"center",justifyContent:"space-between"}},
+              e("span",{style:{fontWeight:800,color:col.text,fontSize:14}},col.icon+" "+cat),
+              e("span",{style:{fontSize:12,fontWeight:700,color:col.text,background:col.border+"20",padding:"3px 10px",borderRadius:20}},done+"/"+acts.length)
+            ),
+            e("div",{style:{padding:"6px 14px 10px"}},
+              acts.map(act=>e(ActRow,{key:act.id,act,value:getE(selDate,act.id),onChange:val=>setE(selDate,act.id,val),editMode,onDeleteRequest:handleDeleteRequest}))
+            )
+          );
+        }),
+
+        // Add Activity
+        !editMode && (!showAdd
+          ? e("button",{onClick:()=>setShowAdd(true),style:{width:"100%",padding:15,background:"none",border:"2px dashed #cbd5e1",borderRadius:16,cursor:"pointer",color:"#64748b",fontWeight:700,fontSize:14,marginTop:4}},"＋ Add New Activity")
+          : e("div",{style:{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20,marginTop:8}},
+              e("div",{style:{fontWeight:800,marginBottom:14,color:"#1e293b",fontSize:15}},"✨ Add Custom Activity"),
+              e("input",{placeholder:"Activity name",value:newAct.label,onChange:ev=>setNewAct(p=>({...p,label:ev.target.value})),style:{width:"100%",padding:"11px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",marginBottom:10,fontSize:14,color:"#1e293b"}}),
+              e("div",{style:{display:"grid",gridTemplateColumns:"1fr 72px 1fr",gap:8,marginBottom:14}},
+                e("select",{value:newAct.type,onChange:ev=>setNewAct(p=>({...p,type:ev.target.value})),style:{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}},
+                  e("option",{value:"checkbox"},"✓ Checkbox"),e("option",{value:"text"},"Aa Text"),e("option",{value:"number"},"123 Number"),e("option",{value:"time"},"⏰ Time")
+                ),
+                e("input",{placeholder:"🎯",value:newAct.icon,onChange:ev=>setNewAct(p=>({...p,icon:ev.target.value})),style:{padding:9,borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:20,textAlign:"center",color:"#1e293b"}}),
+                e("select",{value:newAct.category,onChange:ev=>setNewAct(p=>({...p,category:ev.target.value})),style:{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}},
+                  Object.keys(CAT_STYLE).map(c=>e("option",{key:c},c))
+                )
+              ),
+              e("div",{style:{display:"flex",gap:8}},
+                e("button",{onClick:addAct,style:{flex:1,padding:12,background:"#1e293b",color:"#fff",border:"none",borderRadius:12,fontWeight:800,cursor:"pointer",fontSize:14}},"Add Activity"),
+                e("button",{onClick:()=>setShowAdd(false),style:{padding:"12px 18px",background:"#f1f5f9",border:"none",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,color:"#64748b"}},"Cancel")
+              )
+            )
+        )
+      ),
+
+      // ── HISTORY ──
+      view==="history" && e("div",null,
+        e("div",{style:{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}},"All Entries ("+allDates.length+" days)"),
+        allDates.length===0 && e("div",{style:{textAlign:"center",marginTop:60}},e("div",{style:{fontSize:52,marginBottom:12}},"📭"),e("div",{style:{color:"#94a3b8",fontWeight:600}},"No entries yet. Start tracking today!")),
+        allDates.map(dk=>{
+          const p=pct(dk), wlv=wlKg(dk);
+          return e("div",{key:dk,onClick:()=>{setSelDate(dk);setView("today");},
+            style:{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:"16px 20px",marginBottom:10,cursor:"pointer",transition:"all 0.2s"},
+            onMouseEnter:ev=>{ev.currentTarget.style.transform="translateY(-2px)";ev.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.08)";},
+            onMouseLeave:ev=>{ev.currentTarget.style.transform="none";ev.currentTarget.style.boxShadow="none";}},
+            e("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+              e("div",null,
+                e("div",{style:{fontWeight:800,color:"#1e293b",fontSize:15}},fmtDate(dk)),
+                e("div",{style:{fontSize:12,color:"#64748b",marginTop:3}},doneCount(dk)+"/"+allActs.length+" tasks"+(getW(dk)?" · "+getW(dk)+"kg":"")+(getC(dk)?" · "+getC(dk)+" cal":""))
+              ),
+              e("div",{style:{textAlign:"right",flexShrink:0,marginLeft:12}},
+                e("div",{style:{fontWeight:900,fontSize:20,color:p===100?"#22c55e":p>60?"#f97316":"#ef4444"}},p+"%"),
+                wlv && e("div",{style:{fontSize:12,color:parseFloat(wlv)>0?"#22c55e":"#ef4444",fontWeight:700}},(parseFloat(wlv)>0?"▼":"▲")+Math.abs(parseFloat(wlv)).toFixed(3)+" kg")
+              )
+            ),
+            e("div",{style:{background:"#f1f5f9",borderRadius:6,height:7,marginTop:12,overflow:"hidden"}},
+              e("div",{style:{width:p+"%",height:"100%",background:p===100?"#22c55e":p>60?"#f97316":"#ef4444",borderRadius:6}})
+            )
+          );
+        })
+      ),
+
+      // ── DASHBOARD ──
+      view==="dashboard" && e("div",null,
+        e("div",{style:{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}},"Analytics Dashboard"),
+
+        card(e("div",null,
+          e("div",{style:{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}},"⚖️ Weight Trend"),
+          e("div",{style:{fontSize:12,color:"#94a3b8",marginBottom:14}},"Last 10 days"),
+          e(WeightChart,{data:allDates.slice(0,10).reverse().map(d=>({date:d.slice(5),w:parseFloat(getW(d))||null}))})
+        )),
+
+        card(e("div",null,
+          e("div",{style:{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}},"🚶 Walk Trend"),
+          e("div",{style:{fontSize:12,color:"#94a3b8",marginBottom:14}},"Last 10 days · steps"),
+          e(TrendChart,{
+            data:allDates.slice(0,10).reverse().map(d=>({date:d.slice(5),value:parseFloat(getE(d,"walk"))||null})),
+            color:"#10b981", gradId:"wkg",
+            formatter:v=>Math.round(v).toLocaleString()
+          })
+        )),
+
+        card(e("div",null,
+          e("div",{style:{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}},"🌅 Wake-Up Time Trend"),
+          e("div",{style:{fontSize:12,color:"#94a3b8",marginBottom:14}},"Last 10 days · earlier is better"),
+          e(TrendChart,{
+            data:allDates.slice(0,10).reverse().map(d=>{
+              const t=getE(d,"wake_up");
+              if(!t) return {date:d.slice(5),value:null};
+              const [h,m]=t.split(":").map(Number);
+              return {date:d.slice(5),value:h+(m/60)};
+            }),
+            color:"#f59e0b", gradId:"wutg",
+            formatter:v=>{ const h=Math.floor(v),m=Math.round((v-h)*60); return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"); }
+          })
+        )),
+
+        card(e("div",null,
+          e("div",{style:{fontWeight:800,color:"#1e293b",fontSize:15,marginBottom:4}},"📌 Activity Completion Rate"),
+          e("div",{style:{fontSize:12,color:"#94a3b8",marginBottom:20}},"All tracked days"),
+          allDates.length===0
+            ? e("div",{style:{color:"#94a3b8",textAlign:"center",padding:"20px 0",fontSize:13}},"No data yet — start tracking today!")
+            : dashActs.map(act=>{
+                const total=allDates.length;
+                const done=allDates.filter(d=>{ const v=entries[d]?.[act.id]; return act.type==="checkbox"?v===true:v&&v.toString().trim()!==""; }).length;
+                const p=total?Math.round((done/total)*100):0;
+                const bar=p>80?"#22c55e":p>50?"#f97316":"#ef4444";
+                return e("div",{key:act.id,style:{marginBottom:14}},
+                  e("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,marginBottom:5}},
+                    e("span",{style:{color:"#334155",fontWeight:600}},act.icon+" "+act.label),
+                    e("span",{style:{color:bar,fontWeight:700,minWidth:70,textAlign:"right"}},done+"/"+total+" · "+p+"%")
+                  ),
+                  e("div",{style:{background:"#f1f5f9",borderRadius:6,height:9,overflow:"hidden"}},
+                    e("div",{style:{width:p+"%",height:"100%",background:bar,borderRadius:6,transition:"width 0.4s"}})
+                  )
                 );
-              })()}
-            </div>
-
-            {Object.entries(grouped).map(([cat,acts])=>{
-              const col=CAT_STYLE[cat]||CAT_STYLE.Custom;
-              const done=acts.filter(a=>{const v=entries[selDate]?.[a.id];return a.type==="checkbox"?v===true:v&&v.toString().trim()!==""}).length;
-              return(
-                <div key={cat} style={{background:col.bg,border:`1.5px solid ${col.border}`,borderRadius:18,marginBottom:14,overflow:"hidden"}}>
-                  <div style={{padding:"12px 18px 10px",borderBottom:`1px solid ${col.border}40`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <span style={{fontWeight:800,color:col.text,fontSize:14}}>{col.icon} {cat}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:col.text,background:`${col.border}20`,padding:"3px 10px",borderRadius:20}}>{done}/{acts.length}</span>
-                  </div>
-                  <div style={{padding:"6px 14px 10px"}}>
-                    {acts.map(act=>(
-                      <ActRow key={act.id} act={act} value={getE(selDate,act.id)} onChange={val=>setE(selDate,act.id,val)}/>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
-            {!showAdd?(
-              <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:15,background:"none",border:"2px dashed #cbd5e1",borderRadius:16,cursor:"pointer",color:"#64748b",fontWeight:700,fontSize:14,marginTop:4}}>
-                ＋ Add New Activity
-              </button>
-            ):(
-              <div style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:20,marginTop:8}}>
-                <div style={{fontWeight:800,marginBottom:14,color:"#1e293b",fontSize:15}}>✨ Add Custom Activity</div>
-                <input placeholder="Activity name" value={newAct.label} onChange={e=>setNewAct(p=>({...p,label:e.target.value}))}
-                  style={{width:"100%",padding:"11px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",marginBottom:10,fontSize:14,color:"#1e293b"}}/>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 72px 1fr",gap:8,marginBottom:14}}>
-                  <select value={newAct.type} onChange={e=>setNewAct(p=>({...p,type:e.target.value}))} style={{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}}>
-                    <option value="checkbox">✓ Checkbox</option>
-                    <option value="text">Aa Text</option>
-                    <option value="number">123 Number</option>
-                    <option value="time">⏰ Time</option>
-                  </select>
-                  <input placeholder="🎯" value={newAct.icon} onChange={e=>setNewAct(p=>({...p,icon:e.target.value}))}
-                    style={{padding:9,borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:20,textAlign:"center",color:"#1e293b"}}/>
-                  <select value={newAct.category} onChange={e=>setNewAct(p=>({...p,category:e.target.value}))} style={{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:13,color:"#1e293b"}}>
-                    {Object.keys(CAT_STYLE).map(c=><option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={addAct} style={{flex:1,padding:12,background:"#1e293b",color:"#fff",border:"none",borderRadius:12,fontWeight:800,cursor:"pointer",fontSize:14}}>Add Activity</button>
-                  <button onClick={()=>setShowAdd(false)} style={{padding:"12px 18px",background:"#f1f5f9",border:"none",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,color:"#64748b"}}>Cancel</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {view==="history"&&(
-          <div>
-            <div style={{fontWeight:800,fontSize:18,color:"#1e293b",marginBottom:16}}>All Entries ({allDates.length} days)</div>
-            {allDates.length===0&&(
-              <div style={{textAlign:"center",marginTop:60}}>
-                <div style={{fontSize:52,marginBottom:12}}>📭</div>
-                <div style={{color:"#94a3b8",fontWeight:600}}>No entries yet. Start tracking today!</div>
-              </div>
-            )}
-            {allDates.map(dk=>{
-              const p=pct(dk),wlv=wlKg(dk);
-              return(
-                <div key={dk} onClick={()=>{setSelDate(dk);setView("today");}}
-                  style={{background:"#fff",border:"1.5px solid #e2e8f0",borderRadius:18,padding:"16px 20px",marginBottom:10,cursor:"pointer",transition:"all 0.2s"}}
-                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.08)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none";}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                    <div>
-                      <div style={{fontWeight:800,color:"#1e293b",fontSize:15}}>{fmtDate(dk)}</div>
-                      <div style={{fontSize:12,color:"#64748b",marginTop:3}}>
-                        {doneCount(dk)}/{allActs.length} tasks
-                        {getW(dk)?` · ${getW(dk)}kg`:""}
-                        {getC(dk)?` · ${getC(dk)} cal`:""}
-                      </div>
-                    </div>
-                    <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                      <div style={{fontWeight:900,fontSize:20,color:p===100?"#22c55e":p>60?"#f97316":"#ef4444"}}>{p}%</div>
-                      {wlv&&<div style={{fontSize:12,color:parseFloat(wlv)>0?"#22c55e":"#ef4444",fontWeight:700}}>{parseFloat(wlv)>0?"▼":"▲"}{Math.abs(parseFloat(wlv)).toFixed(3)} kg</div>}
-                    </div>
-                  </div>
-                  <div style={{background:"#f1f5f9",borderRadius:6,height:7,marginTop:12,overflow:"hidden"}}>
-                    <div style={{width:`${p}%`,height:"100%",background:p===100?"#22c55e":p>60?"#f97316":"#ef4444",borderRadius:6}}/>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {view==="dashboard"&&(
-          <div>
-            <div
-              style={{
-                fontWeight:800,
-                fontSize:18,
-                color:"#1e293b",
-                marginBottom:16
-              }}
-            >
-              Analytics Dashboard
-            </div>
-
-            {/* Weight Trend */}
-            <div
-              style={{
-                background:"#fff",
-                border:"1.5px solid #e2e8f0",
-                borderRadius:18,
-                padding:20,
-                marginBottom:20
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:800,
-                  color:"#1e293b",
-                  fontSize:15,
-                  marginBottom:4
-                }}
-              >
-                ⚖️ Weight Trend
-              </div>
-
-              <div
-                style={{
-                  fontSize:12,
-                  color:"#94a3b8",
-                  marginBottom:14
-                }}
-              >
-                Last 10 days
-              </div>
-
-              <WeightChart
-                data={allDates
-                  .slice(0,10)
-                  .reverse()
-                  .map(d=>({
-                    date:d.slice(5),
-                    w:parseFloat(getW(d))||null
-                  }))
-                }
-              />
-            </div>
-
-            {/* Walk Trend */}
-            <div
-              style={{
-                background:"#fff",
-                border:"1.5px solid #e2e8f0",
-                borderRadius:18,
-                padding:20,
-                marginBottom:20
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:800,
-                  color:"#1e293b",
-                  fontSize:15,
-                  marginBottom:4
-                }}
-              >
-                🚶 Walk Trend
-              </div>
-
-              <div
-                style={{
-                  fontSize:12,
-                  color:"#94a3b8",
-                  marginBottom:14
-                }}
-              >
-                Last 10 days
-              </div>
-
-              <TrendChart
-                data={allDates
-                  .slice(0,10)
-                  .reverse()
-                  .map(d=>({
-                    date:d.slice(5),
-                    value:parseFloat(getE(d,"walk"))||null
-                  }))
-                }
-                formatter={v =>
-                  `${Math.round(v).toLocaleString()}`
-                }
-              />
-            </div>
-
-            {/* Wake Up Trend */}
-            <div
-              style={{
-                background:"#fff",
-                border:"1.5px solid #e2e8f0",
-                borderRadius:18,
-                padding:20,
-                marginBottom:20
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:800,
-                  color:"#1e293b",
-                  fontSize:15,
-                  marginBottom:4
-                }}
-              >
-                🌅 Wake-Up Time Trend
-              </div>
-
-              <div
-                style={{
-                  fontSize:12,
-                  color:"#94a3b8",
-                  marginBottom:14
-                }}
-              >
-                Last 10 days
-              </div>
-
-              <TrendChart
-                data={allDates
-                  .slice(0,10)
-                  .reverse()
-                  .map(d=>{
-                    const t=getE(d,"wake_up");
-
-                    if(!t){
-                      return {
-                        date:d.slice(5),
-                        value:null
-                      };
-                    }
-
-                    const [h,m]=t.split(":").map(Number);
-
-                    return {
-                      date:d.slice(5),
-                      value:h+(m/60)
-                    };
-                  })
-                }
-                formatter={v=>{
-                  const h=Math.floor(v);
-                  const m=Math.round((v-h)*60);
-
-                  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-                }}
-              />
-            </div>
-
-            {/* Completion Rate */}
-            <div
-              style={{
-                background:"#fff",
-                border:"1.5px solid #e2e8f0",
-                borderRadius:18,
-                padding:20
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:800,
-                  color:"#1e293b",
-                  fontSize:15,
-                  marginBottom:4
-                }}
-              >
-                📌 Activity Completion Rate
-              </div>
-
-              <div
-                style={{
-                  fontSize:12,
-                  color:"#94a3b8",
-                  marginBottom:20
-                }}
-              >
-                All tracked days · Breakfast, Lunch & Dinner excluded
-              </div>
-
-              {allDates.length===0 ? (
-                <div
-                  style={{
-                    color:"#94a3b8",
-                    textAlign:"center",
-                    padding:"20px 0",
-                    fontSize:13
-                  }}
-                >
-                  No data yet — start tracking today!
-                </div>
-              ) : (
-                dashActs.map(act=>{
-                  const total=allDates.length;
-
-                  const done=allDates.filter(d=>{
-                    const v=entries[d]?.[act.id];
-
-                    return act.type==="checkbox"
-                      ? v===true
-                      : v && v.toString().trim()!=="";
-                  }).length;
-
-                  const p=total
-                    ? Math.round((done/total)*100)
-                    : 0;
-
-                  const bar=
-                    p>80
-                      ? "#22c55e"
-                      : p>50
-                      ? "#f97316"
-                      : "#ef4444";
-
-                  return(
-                    <div
-                      key={act.id}
-                      style={{marginBottom:14}}
-                    >
-                      <div
-                        style={{
-                          display:"flex",
-                          justifyContent:"space-between",
-                          alignItems:"center",
-                          fontSize:13,
-                          marginBottom:5
-                        }}
-                      >
-                        <span
-                          style={{
-                            color:"#334155",
-                            fontWeight:600
-                          }}
-                        >
-                          {act.icon} {act.label}
-                        </span>
-
-                        <span
-                          style={{
-                            color:bar,
-                            fontWeight:700,
-                            minWidth:70,
-                            textAlign:"right"
-                          }}
-                        >
-                          {done}/{total} · {p}%
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          background:"#f1f5f9",
-                          borderRadius:6,
-                          height:9,
-                          overflow:"hidden"
-                        }}
-                      >
-                        <div
-                          style={{
-                            width:`${p}%`,
-                            height:"100%",
-                            background:bar,
-                            borderRadius:6,
-                            transition:"width 0.4s"
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
+              })
+        ))
+      )
+    )
   );
 }
 
-ReactDOM.render(<App/>,document.getElementById("root"));
+ReactDOM.render(React.createElement(App), document.getElementById("root"));
 </script>
 </body>
 </html>
